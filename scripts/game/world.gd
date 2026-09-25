@@ -71,10 +71,17 @@ func setup(r: Node, m: Dictionary, seed_value: int) -> void:
 	for e in m["entities"]:
 		_spawn_from_data(e)
 	if is_town:
+		var lamp_xs := []
 		for x in range(6, mw - 4, 10):
 			var lamp := Art.make_light(Color("#ffd28a"), 110.0, 1.4)
-			lamp.position = Vector2(x * T + 8, (mh - 5) * T)
+			lamp.position = Vector2(x * T + 8, 15 * T - 36)
 			light_root.add_child(lamp)
+			lamp_xs.append(x * T + 8)
+		# Casas, farolas, banderines y detalles del pueblo, detrás de todo lo demás.
+		var deco := TownDecor.new()
+		deco.setup(self, 15 * T, map_w_px, lamp_xs)
+		layer_back.add_child(deco)
+		layer_back.move_child(deco, 0)
 	for d in m.get("doors", []):
 		var n := Npc.new()
 		n.setup(self, {"kind": "puerta", "biome": d["biome"], "pos": d["pos"]})
