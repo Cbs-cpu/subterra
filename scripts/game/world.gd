@@ -189,7 +189,18 @@ func _nid() -> int:
 
 func _spawn_from_data(e: Dictionary) -> void:
 	match e["kind"]:
-		"planta", "enredadera":
+		"planta":
+			# Los árboles altos de fondo también se talan: son árboles con el dibujo de planta.
+			var tp := WorldNode.new()
+			var d2 := e.duplicate()
+			d2["kind"] = "arbol"
+			d2["plant_h"] = e.get("h", 60)
+			tp.setup(self, d2)
+			tp.net_id = _nid()
+			nodes.append(tp)
+			layer_back.add_child(tp)
+			layer_back.move_child(tp, 0)
+		"enredadera":
 			var dn := Deco.new()
 			dn.setup(self, e)
 			layer_back.add_child(dn)

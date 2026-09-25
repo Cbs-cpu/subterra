@@ -241,3 +241,22 @@ func test_jump_buffer_and_dash() -> void:
 	var dist := h.position.x - x0
 	check(dist > 30.0 and dist < 70.0, "dash (%.1f px)" % dist)
 	_free()
+
+
+func test_tall_background_trees_can_be_chopped() -> void:
+	_make()
+	var w := run.world
+	var tall := []
+	for n in w.nodes:
+		if n.kind == "arbol" and n.plant_h > 0:
+			tall.append(n)
+	check(tall.size() > 0, "el bosque tiene árboles altos talables")
+	if tall.size() > 0:
+		var t: WorldNode = tall[0]
+		var hits := 0
+		while not t.dead and hits < 20:
+			check(t.hit_by(_hero(), "hacha", 1), "el hacha golpea el árbol alto")
+			hits += 1
+		check(t.dead, "el árbol alto cae tras %d hachazos" % hits)
+		check(not t.hit_by(_hero(), "pico", 1), "el pico no tala")
+	_free()

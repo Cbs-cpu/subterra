@@ -69,6 +69,8 @@ func setup_enemy(w: Node, enemy_id: String, district: int, madman: bool) -> void
 
 
 func tick(dt: float) -> void:
+	# Se redibuja cada fotograma: las animaciones (por piezas o por sprites) dependen del tiempo.
+	queue_redraw()
 	anim_t += dt
 	rig_t += dt
 	rig_hurt = maxf(0.0, rig_hurt - dt)

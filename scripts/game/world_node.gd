@@ -17,6 +17,9 @@ var t := 0.0
 var shake_t := 0.0
 var variant := 0
 var net_id := 0
+## Árbol alto con dibujo de planta (0 = árbol normal): altura en píxeles y variante.
+var plant_h := 0
+var plant_v := 0
 
 
 func setup(w: Node, d: Dictionary) -> void:
@@ -27,6 +30,8 @@ func setup(w: Node, d: Dictionary) -> void:
 	elem = d.get("elem", "fuego")
 	golden = d.get("golden", false)
 	variant = int(position.x) % 7
+	plant_h = d.get("plant_h", 0)
+	plant_v = d.get("v", 0)
 	if kind == "luz_bicho":
 		var l := Art.make_light(_elem_col(), 46.0, 1.1)
 		add_child(l)
@@ -39,7 +44,7 @@ func setup(w: Node, d: Dictionary) -> void:
 		l3.position = Vector2(0, -6)
 		add_child(l3)
 	match kind:
-		"arbol": hp = 4
+		"arbol": hp = 4 if plant_h == 0 else 2 + plant_h / 40
 		"roca": hp = 3 + ORE_REQ.get(ore, 0)
 		"hierba": hp = 1
 		"colmena": hp = 3
@@ -50,7 +55,9 @@ func setup(w: Node, d: Dictionary) -> void:
 
 func rect() -> Rect2:
 	match kind:
-		"arbol": return Rect2(position.x - 8, position.y - 40, 16, 40)
+		"arbol":
+			var th := 40 if plant_h == 0 else plant_h
+			return Rect2(position.x - 8, position.y - th, 16, th)
 		"roca": return Rect2(position.x - 9, position.y - 15, 18, 15)
 		"hierba": return Rect2(position.x - 7, position.y - 10, 14, 10)
 		"luz_bicho": return Rect2(position.x - 7, position.y - 7, 14, 14)
@@ -190,8 +197,11 @@ func _draw() -> void:
 		sx = roundf(sin(t * 1.3 + variant) * 0.6)
 	match kind:
 		"arbol":
-			var tt := Art.tree(world.biome, variant)
-			draw_texture(tt, Vector2(-tt.get_width() / 2.0 + sx, -tt.get_height()))
+			if plant_h > 0:
+				draw_texture(Art.plant(world.biome, plant_h, plant_v), Vector2(-14 + sx, -plant_h))
+			else:
+				var tt := Art.tree(world.biome, variant)
+				draw_texture(tt, Vector2(-tt.get_width() / 2.0 + sx, -tt.get_height()))
 		"roca":
 			draw_texture(Art.rock(ore, world.biome), Vector2(-9 + sx, -16))
 		"hierba":
