@@ -63,15 +63,16 @@ python tools/make_font.py
 ### Consola de depuración
 Pulsa **`** (acento grave; en teclado español, la tecla a la derecha de la P) o **F12**. `help` lista los comandos; **Tab** autocompleta (también ids de objetos, enemigos y biomas) y **↑/↓** recorren el historial. Algunos: `give <objeto> [n]`, `spawn <enemigo> [n]`, `kill`, `heal`, `god`, `noclip`, `level <n>`, `coins <n>`, `stat atk 5`, `skill <id>`, `district <bioma> [n]`, `town`, `door <n>`, `final`, `exit`, `reveal`, `time <s>`, `speed <x>`, `unlock all`, `info`, `stats` (FPS y entidades). En cooperativo los trucos solo funcionan en el anfitrión.
 
-### Animaciones del personaje principal (HyperFrames)
-El personaje principal (raza Minero) se anima por piezas en una composición de HyperFrames (`art_src/pj_hf/index.html`): cabeza, pelo, torso, brazos y piernas en SVG sobre una rejilla de 24x24, con poses clave interpoladas por GSAP para `idle`, `run`, `jump`, `fall`, `attack`, `hurt`, `dash` y `down`. Se renderiza a secuencia PNG y un script lo convierte en pixel art con anclajes de mano y cabeza:
+### Personaje principal por piezas (AnimationPlayer)
+El Minero se monta con piezas sueltas de pixel art gordito con contorno negro (cabeza, torso, dos manos flotantes y dos pies), como en los juegos de su época. Las piezas se dibujan en `tools/pj_partes.py` y la escena `scenes/pj_rig.tscn` las une con pivotes y un `AnimationPlayer` con `idle`, `run`, `jump`, `fall`, `attack`, `hurt`, `dash` y `down`. El héroe elige la animación y el punto según su estado; el arma va en la mano delantera y el sombrero sobre la cabeza.
 
 ```bash
-cd art_src/pj_hf
-npx hyperframes render --format png-sequence --fps 24 --output ../../.hf_out/sprite
-npx hyperframes render --format png-sequence --fps 24 --variables '{"markers":true}' --output ../../.hf_out/markers
-cd ../.. && python tools/hf_to_sprites.py   # escribe assets/sprites/pj/ (+ .hf_out/revision.png)
+python tools/pj_partes.py                                    # piezas -> assets/sprites/pj_partes/
+godot --headless --path . -s res://tools/build_pj_rig.gd     # escena y animaciones -> scenes/pj_rig.tscn
+godot --path . -s res://tools/rig_strip.gd                   # hoja de revisión -> shots/rig_anims.png
 ```
+
+La escena se puede abrir y retocar en el editor (pestaña Animación); si se regenera con el script se sobrescribe.
 
 El resto de razas, vecinos y enemigos siguen generándose por código (`scripts/art/`).
 

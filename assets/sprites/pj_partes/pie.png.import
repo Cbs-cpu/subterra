@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dr1amuns2kjmy"
-path="res://.godot/imported/run_5.png-83866eaf7c24aae5adbadc447a68e07c.ctex"
+uid="uid://cbeklhogdm72y"
+path="res://.godot/imported/pie.png-1c4606c504349acff841512457d8e8cf.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/pj/run_5.png"
-dest_files=["res://.godot/imported/run_5.png-83866eaf7c24aae5adbadc447a68e07c.ctex"]
+source_file="res://assets/sprites/pj_partes/pie.png"
+dest_files=["res://.godot/imported/pie.png-1c4606c504349acff841512457d8e8cf.ctex"]
 
 [params]
 

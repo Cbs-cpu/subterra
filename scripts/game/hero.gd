@@ -11,6 +11,10 @@ const DOUBLE_JUMP_V := 340.0
 const COYOTE := 0.1
 const BUFFER := 0.12
 const DASH_SPEED := 300.0
+## Personaje principal por piezas (cabeza, torso, manos y pies) animado con un
+## AnimationPlayer. Solo para la raza Minero; el resto usa los sprites de Humanoid.
+const RIG_SCENE := preload("res://scenes/pj_rig.tscn")
+const RIG_ORDER := ["PieB", "PieF", "ManoB", "Torso", "Cabeza", "ManoF"]
 
 var model: HeroModel
 var input := InputState.new()
@@ -38,6 +42,8 @@ var squash := Vector2.ONE
 var triple_next := false
 var companion_t := 0.0
 var spit_t := 0.0
+var rig: Node2D
+var rig_ap: AnimationPlayer
 var aim_angle := 0.0
 var last_hit_by := ""
 var pickpocket_cd := 0.0
@@ -477,11 +483,69 @@ func current_anim() -> Array:
 	return ["idle", int(anim_t * Art.hero_count(race, "idle") / 1.3)]
 
 
+## Escena de piezas del personaje (se crea al primer uso; null si la raza no la tiene).
+func _rig() -> Node2D:
+	if model == null or model.race_id != "minero":
+		if rig != null:
+			rig.queue_free()
+			rig = null
+		return null
+	if rig == null:
+		rig = RIG_SCENE.instantiate()
+		# Invisible: sus nodos solo guardan la pose; las piezas se dibujan en _draw para
+		# conservar el orden con el arma, el sombrero, el destello y el aplastamiento.
+		rig.visible = false
+		add_child(rig)
+		rig_ap = rig.get_node("AnimationPlayer")
+		rig_ap.speed_scale = 0.0
+	return rig
+
+
+## Animación del esqueleto y el punto de la misma según el estado del héroe.
+func rig_state() -> Array:
+	if downed or dead:
+		return ["down", 0.0]
+	if dash_t > 0.0:
+		return ["dash", fmod(anim_t, 0.25)]
+	if attack_t > 0.0:
+		return ["attack", (1.0 - attack_t / attack_len) * 0.3]
+	if hurt_t > 0.0:
+		return ["hurt", clampf(0.25 - hurt_t, 0.0, 0.25)]
+	if not on_floor and use_gravity:
+		return ["jump" if vel.y < 0.0 else "fall", clampf(absf(vel.y) / 300.0, 0.0, 1.0) * 0.3]
+	if absf(vel.x) > 12.0:
+		# Una zancada completa cada ~48 px.
+		return ["run", fmod(run_dist / 48.0, 1.0) * 0.48]
+	return ["idle", fmod(anim_t, 1.2)]
+
+
+## Transformación de una pieza respecto a los pies del héroe.
+func _rig_tr(part: String) -> Transform2D:
+	var root: Node2D = rig.get_node("Root")
+	return root.transform * (root.get_node(part) as Node2D).transform
+
+
+func _draw_rig(base_tr: Transform2D, col: Color) -> void:
+	var st := rig_state()
+	if rig_ap.current_animation != st[0]:
+		rig_ap.play(st[0])
+	rig_ap.seek(st[1], true)
+	var root: Node2D = rig.get_node("Root")
+	for n in RIG_ORDER:
+		var s: Sprite2D = root.get_node(n)
+		var t := base_tr * root.transform * s.transform
+		t.origin = t.origin.round()
+		draw_set_transform_matrix(t)
+		draw_texture(s.texture, s.offset, col)
+	draw_set_transform_matrix(base_tr)
+
+
 func _draw() -> void:
 	if dead:
 		return
 	if invuln > 0.0 and not downed and int(invuln * 20.0) % 2 == 0 and dash_t <= 0.0:
 		return
+	var rg := _rig()
 	var a := current_anim()
 	var fr: Dictionary = Art.hero_frame(model.race_id, a[0], a[1])
 	var tex: Texture2D = fr["tex"]
@@ -489,43 +553,49 @@ func _draw() -> void:
 	if flash_t > 0.0:
 		col = Color(2.5, 2.5, 2.5)
 	if downed:
-		draw_set_transform(Vector2(0, -4), -PI / 2.0 * facing, Vector2.ONE)
-		var og0: Vector2 = Vector2(fr["origin"])
-		draw_texture(tex, -og0 + Vector2(0, 9), Color(1, 1, 1, 0.8))
+		if rg:
+			_draw_rig(Transform2D(-PI / 2.0 * facing, Vector2.ONE, 0.0, Vector2(0, -4)) * Transform2D(0.0, Vector2(facing, 1), 0.0, Vector2(0, 7)), Color(1, 1, 1, 0.8))
+		else:
+			draw_set_transform(Vector2(0, -4), -PI / 2.0 * facing, Vector2.ONE)
+			var og0: Vector2 = Vector2(fr["origin"])
+			draw_texture(tex, -og0 + Vector2(0, 9), Color(1, 1, 1, 0.8))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		return
 	var sc := Vector2(squash.x * facing, squash.y)
-	# Saltitos al correr y respiración en reposo.
+	# Saltitos al correr y respiración en reposo (el esqueleto ya los lleva en sus animaciones).
 	var bob := 0.0
-	if a[0] == "run":
-		var ph := run_dist / 7.0 * PI / 3.0
-		bob = -absf(sin(ph)) * 1.5
-		sc.y *= 1.0 + cos(ph * 2.0) * 0.05
-	elif a[0] == "idle":
-		sc.y *= 1.0 + sin(anim_t * 3.0) * 0.04
-	elif a[0] == "jump" or a[0] == "fall":
-		sc.y *= 1.0 + clampf(-vel.y / 500.0, -0.15, 0.18)
-		sc.x *= 1.0 - clampf(-vel.y / 500.0, -0.15, 0.18) * 0.5
+	if rg == null:
+		if a[0] == "run":
+			var ph := run_dist / 7.0 * PI / 3.0
+			bob = -absf(sin(ph)) * 1.5
+			sc.y *= 1.0 + cos(ph * 2.0) * 0.05
+		elif a[0] == "idle":
+			sc.y *= 1.0 + sin(anim_t * 3.0) * 0.04
+		elif a[0] == "jump" or a[0] == "fall":
+			sc.y *= 1.0 + clampf(-vel.y / 500.0, -0.15, 0.18)
+			sc.x *= 1.0 - clampf(-vel.y / 500.0, -0.15, 0.18) * 0.5
 	var base := Vector2(0, bob)
 	draw_set_transform(base, 0.0, sc)
 	# Brillo de habilidades activas.
 	if model.has_buff("furia"):
 		draw_rect(Rect2(-6, -17, 12, 17), Color(1, 0.2, 0.1, 0.18 + 0.1 * sin(anim_t * 10.0)))
 	var og: Vector2 = Vector2(fr["origin"])
-	draw_texture(tex, -og, col)
+	if rg:
+		_draw_rig(Transform2D(0.0, sc, 0.0, base), col)
+	else:
+		draw_texture(tex, -og, col)
 	# Sombrero.
 	var hat = Art.hat(model.hat_id)
 	if hat:
-		var hd: Vector2i = fr["head"]
-		draw_texture(hat, Vector2(hd) - og + Vector2(-6, -10), col)
+		var hd: Vector2 = (_rig_tr("Cabeza") * Vector2(0, -8)).round() if rg else Vector2(fr["head"]) - og
+		draw_texture(hat, hd + Vector2(-6, -10), col)
 	# Objeto en la mano: se calcula mirando a la derecha y luego se voltea.
 	var h = model.inv.held()
 	if not is_local and has_meta("held"):
 		var mh: String = get_meta("held")
 		h = null if mh == "" else {"id": mh, "n": 1}
 	if h != null and ItemDB.get_item(h["id"]).get("slot", "") == "":
-		var hand: Vector2i = fr["hand"]
-		var hp := Vector2(hand) - og
+		var hp: Vector2 = _rig_tr("ManoF").origin.round() if rg else Vector2(fr["hand"]) - og
 		var rot := 0.0
 		var wc: String = ItemDB.get_item(h["id"]).get("wclass", "")
 		if attack_t > 0.0:

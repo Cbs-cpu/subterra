@@ -1,16 +1,17 @@
 """Piezas sueltas del personaje principal (estilo "marioneta": se unirán en Godot con
-un esqueleto y se animarán con el AnimationPlayer). Todavía NO se usan en el juego.
+un esqueleto y se animarán con el AnimationPlayer: scenes/pj_rig.tscn, generada por
+tools/build_pj_rig.gd).
 
 Cada pieza es un sprite pequeño y gordito con contorno oscuro, mirando a la derecha.
 Uso: python tools/pj_partes.py [pieza]
-Escribe art_src/pj_partes/<pieza>.png y una vista ampliada en shots/pj_<pieza>.png.
+Escribe assets/sprites/pj_partes/<pieza>.png y una vista ampliada en shots/pj_<pieza>.png.
 """
 import os
 import sys
 
 from PIL import Image, ImageDraw
 
-OUT = "art_src/pj_partes"
+OUT = "assets/sprites/pj_partes"
 PAL = {
     "O": (14, 10, 10),      # contorno negro
     "H": (107, 69, 38),     # pelo
@@ -26,6 +27,8 @@ PAL = {
     "b": (170, 176, 184),   # hebilla
     "P": (94, 62, 40),      # pantalón
     "p": (70, 46, 30),      # pantalón en sombra
+    "B": (74, 48, 30),      # bota
+    "c": (104, 70, 44),     # bota con luz
 }
 
 PARTES = {
@@ -53,10 +56,24 @@ PARTES = {
         "OpPPPPPO",
         "OOOOOOOO",
     ],
+    # Mano: cuadradito de piel suelto que flota junto al cuerpo (lleva el arma).
+    "mano": [
+        "OOOO",
+        "OSSO",
+        "OsSO",
+        "OOOO",
+    ],
+    # Pie: bota pequeña y ancha, con la punta hacia delante.
+    "pie": [
+        "OOOO.",
+        "OBcOO",
+        "OBBcO",
+        "OOOOO",
+    ],
 }
 
 # Dónde va cada pieza en el montaje de prueba (esquina superior izquierda, en píxeles).
-MONTAJE = {"cabeza": (0, 0), "torso": (2, 8)}
+MONTAJE = {"cabeza": (0, 0), "torso": (2, 8), "mano": (9, 10), "pie": (6, 12)}
 
 
 def build(name):
@@ -105,12 +122,12 @@ def preview(name, im, z=24):
 def montaje(z=12):
     """Todas las piezas hechas hasta ahora colocadas juntas (las posteriores tapan a las anteriores)."""
     ims = {n: build(n) for n in PARTES}
-    w = max(MONTAJE[n][0] + ims[n].width for n in ims)
+    w = max(MONTAJE[n][0] + ims[n].width for n in ims) + 2
     h = max(MONTAJE[n][1] + ims[n].height for n in ims)
     im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    for n in ["torso", "cabeza"]:
-        if n in ims:
-            im.alpha_composite(ims[n], MONTAJE[n])
+    for n, pos in [("pie", (2, 12)), ("pie", (6, 12)), ("mano", (-1, 10)), ("torso", (2, 8)), ("cabeza", (0, 0)), ("mano", (9, 10))]:
+        x, y = pos[0] + 1, pos[1]
+        im.alpha_composite(ims[n], (x, y))
     big = im.resize((w * z, h * z), Image.NEAREST)
     out = Image.new("RGBA", (big.width + 48, big.height + 48), (34, 30, 44, 255))
     out.alpha_composite(big, (24, 24))

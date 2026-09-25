@@ -51,55 +51,36 @@ func humanoid(look_key: String, look: Dictionary, anim: String, i: int) -> Dicti
 	return _c("hum|%s|%s|%d" % [look_key, anim, fi], func(): return Humanoid.build(look, anim, fi))
 
 
-## Hojas de sprites hechas con HyperFrames (art_src/pj_hf → tools/hf_to_sprites.py), por raza.
-const SHEETS := {"minero": "res://assets/sprites/pj"}
-var _sheets := {}
-
-
-func _sheet(race_id: String) -> Dictionary:
-	if not SHEETS.has(race_id):
-		return {}
-	if _sheets.has(race_id):
-		return _sheets[race_id]
-	var dir: String = SHEETS[race_id]
-	var meta = JSON.parse_string(FileAccess.get_file_as_string(dir + "/anims.json")) if FileAccess.file_exists(dir + "/anims.json") else null
-	var out := {}
-	if typeof(meta) == TYPE_DICTIONARY:
-		var origin := Vector2i(int(meta["origin"][0]), int(meta["origin"][1]))
-		for anim in meta["anims"]:
-			var frames := []
-			for f in meta["anims"][anim]:
-				var tex = load(dir + "/" + f["file"])
-				if tex == null:
-					var img := Image.load_from_file(ProjectSettings.globalize_path(dir + "/" + f["file"]))
-					tex = ImageTexture.create_from_image(img) if img else null
-				if tex == null:
-					continue
-				frames.append({"tex": tex, "hand": Vector2i(int(f["hand"][0]), int(f["hand"][1])),
-					"head": Vector2i(int(f["head"][0]), int(f["head"][1])), "origin": origin})
-			out[anim] = frames
-	_sheets[race_id] = out
-	return out
-
-
-## Número de fotogramas de una animación del héroe.
-func hero_count(race_id: String, anim: String) -> int:
-	var sh := _sheet(race_id)
-	if sh.has(anim) and not sh[anim].is_empty():
-		return sh[anim].size()
+## Número de fotogramas de una animación del héroe (sprites de Humanoid).
+func hero_count(_race_id: String, anim: String) -> int:
 	return Humanoid.ANIMS.get(anim, 1)
 
 
-## Fotograma del héroe: {tex, hand, head, origin}. Usa la hoja de HyperFrames si existe.
+## Fotograma del héroe: {tex, hand, head, origin}. El Minero se anima por piezas en el
+## juego (scenes/pj_rig.tscn); aquí se da su pose de reposo montada en una sola imagen para
+## los retratos de los menús.
 func hero_frame(race_id: String, anim: String, i: int) -> Dictionary:
-	var sh := _sheet(race_id)
-	if sh.has(anim) and not sh[anim].is_empty():
-		var fr: Array = sh[anim]
-		return fr[posmod(i, fr.size())]
+	if race_id == "minero":
+		return _c("pj_partes", _pj_portrait)
 	var d: Dictionary = humanoid("race_" + race_id, race_look(race_id), anim, i)
 	if not d.has("origin"):
 		d["origin"] = Vector2i(7, 18)
 	return d
+
+
+## Monta las piezas del Minero en reposo (mismas posiciones que REST en tools/build_pj_rig.gd).
+func _pj_portrait() -> Dictionary:
+	var dir := "res://assets/sprites/pj_partes/"
+	var origin := Vector2i(8, 16)
+	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
+	# [pieza, esquina superior izquierda relativa a los pies], de atrás hacia delante.
+	for p in [["pie", Vector2i(-4, -4)], ["pie", Vector2i(0, -4)], ["mano", Vector2i(-8, -6)],
+			["torso", Vector2i(-4, -8)], ["cabeza", Vector2i(-6, -16)], ["mano", Vector2i(4, -6)]]:
+		var tex: Texture2D = load(dir + p[0] + ".png")
+		var part := tex.get_image()
+		part.convert(Image.FORMAT_RGBA8)
+		img.blend_rect(part, Rect2i(Vector2i.ZERO, part.get_size()), origin + p[1])
+	return {"tex": ImageTexture.create_from_image(img), "hand": origin + Vector2i(6, -4), "head": origin + Vector2i(0, -16), "origin": origin}
 
 
 func npc_frame(kind: String, anim: String, i: int) -> Dictionary:

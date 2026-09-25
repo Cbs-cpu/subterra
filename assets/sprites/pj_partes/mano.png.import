@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ig3b3cbu2u7u"
-path="res://.godot/imported/attack_2.png-e150cbc1bc4a45cf141f0675e5ad91ef.ctex"
+uid="uid://prq7c2hr3oba"
+path="res://.godot/imported/mano.png-392422b652d1011115db0ca3b8c8c50a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/pj/attack_2.png"
-dest_files=["res://.godot/imported/attack_2.png-e150cbc1bc4a45cf141f0675e5ad91ef.ctex"]
+source_file="res://assets/sprites/pj_partes/mano.png"
+dest_files=["res://.godot/imported/mano.png-392422b652d1011115db0ca3b8c8c50a.ctex"]
 
 [params]
 
