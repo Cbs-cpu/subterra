@@ -319,6 +319,8 @@ const ENEMIES := {
 		"coins": [15, 30], "drops": [["hoja_ceniza", 0.02], ["fragmento_ceniza", 0.3]], "spr": "humano:necrofago"},
 	"gusano_ceniza": {"name": "Gusano de ceniza", "ai": "gusano", "hp": 160, "dmg": 9, "speed": 80, "size": [14, 14], "xp": 80,
 		"coins": [20, 35], "drops": [["fragmento_ceniza", 0.5]], "spr": "gusano"},
+	"lobo": {"name": "Lobo huargo", "ai": "aliado", "hp": 40, "dmg": 0, "speed": 110, "size": [16, 11], "xp": 0,
+		"coins": [0, 0], "drops": [], "spr": "jabali", "pal": "gris"},
 	"zombi_aliado": {"name": "Muerto aliado", "ai": "aliado", "hp": 30, "dmg": 0, "speed": 60, "size": [10, 20], "xp": 0,
 		"coins": [0, 0], "drops": [], "spr": "humano:zombi"},
 
