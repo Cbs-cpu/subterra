@@ -62,7 +62,9 @@ func rect() -> Rect2:
 func tick(dt: float) -> void:
 	t += dt
 	shake_t = maxf(0.0, shake_t - dt)
-	if kind == "luz_bicho" or shake_t > 0.0:
+	if kind == "luz_bicho" or shake_t > 0.0 or open:
+		queue_redraw()
+	elif kind in ["hierba", "arbol"] and int(t * 8.0) != int((t - dt) * 8.0):
 		queue_redraw()
 
 
@@ -184,6 +186,8 @@ func _elem_col() -> Color:
 
 func _draw() -> void:
 	var sx := sin(t * 60.0) * 1.5 if shake_t > 0.0 else 0.0
+	if kind == "arbol" and shake_t <= 0.0:
+		sx = roundf(sin(t * 1.3 + variant) * 0.6)
 	match kind:
 		"arbol":
 			var tt := Art.tree(world.biome, variant)

@@ -301,13 +301,16 @@ func _cleanup() -> void:
 func _update_camera(dt: float) -> void:
 	if cam_target == null or not is_instance_valid(cam_target):
 		return
+	# Como en el original: el ratón desplaza la cámara hacia donde apuntas (mirar arriba/abajo
+	# para ver amenazas), con un seguimiento suave que acelera si el jugador se aleja.
 	var look := Vector2.ZERO
 	if cam_target.is_local:
-		var vp := get_viewport()
-		var m := vp.get_mouse_position() - Vector2(240, 135)
-		look = (m * 0.3).limit_length(70.0)
-	var want: Vector2 = cam_target.center() + look + Vector2(0, -12)
-	camera.position = camera.position.lerp(want, clampf(dt * 7.0, 0.0, 1.0))
+		var m := get_viewport().get_mouse_position() - Vector2(240, 135)
+		look = Vector2(m.x * 0.45, m.y * 0.6).limit_length(120.0)
+	var want: Vector2 = cam_target.center() + look + Vector2(0, -10)
+	var dist := camera.position.distance_to(want)
+	var k := clampf(dt * (4.5 + dist * 0.02), 0.0, 1.0)
+	camera.position = camera.position.lerp(want, k)
 	shake_amt = maxf(0.0, shake_amt - dt * 18.0)
 	camera.offset = Vector2(randf_range(-1, 1), randf_range(-1, 1)) * shake_amt if shake_amt > 0.2 else Vector2.ZERO
 	bg_mat.set_shader_parameter("cam", camera.get_screen_center_position())

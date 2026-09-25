@@ -514,16 +514,38 @@ func _anim_test() -> void:
 	var h: Hero = game_ui.local_hero()
 	h.is_local = false
 	run.world.god_mode = true
+	h.model.inv.slots[1] = Inventory.make("espada_hierro", 1)
+	h.model.inv.slots[2] = Inventory.make("baston_fuego", 1)
+	h.model.mana = 20
 	for k in ["limo_verde", "arana_verde", "jabali", "avispa", "cerdo"]:
-		run.world.spawn_enemy(k, h.position + Vector2(70 + ["limo_verde", "arana_verde", "jabali", "avispa", "cerdo"].find(k) * 30, -10))
-	var inp := InputState.new()
-	inp.move = Vector2(1, 0)
-	run.remote_inputs[h.peer_id] = inp
-	for i in 10:
-		await get_tree().create_timer(0.08).timeout
+		run.world.spawn_enemy(k, h.position + Vector2(90 + ["limo_verde", "arana_verde", "jabali", "avispa", "cerdo"].find(k) * 30, -10))
+	# Secuencia: correr, golpear con espada, saltar, lanzar bola de fuego.
+	var plan := []
+	for i in 4:
+		plan.append({"move": Vector2(1, 0)})
+	for i in 4:
+		plan.append({"hot": 1, "use": true})
+	for i in 4:
+		plan.append({"jump": true, "move": Vector2(0.5, 0)})
+	for i in 4:
+		plan.append({"hot": 2, "use": true})
+	for i in plan.size():
+		var st: Dictionary = plan[i]
+		var inp := InputState.new()
+		inp.move = st.get("move", Vector2.ZERO)
+		inp.jump = st.get("jump", false)
+		inp.jump_pressed = st.get("jump", false) and i % 4 == 0
+		inp.use = st.get("use", false)
+		inp.use_pressed = inp.use
+		inp.hotbar = st.get("hot", -1)
+		inp.aim = h.center() + Vector2(60, -4)
 		run.remote_inputs[h.peer_id] = inp
+		await get_tree().create_timer(0.07).timeout
 		await RenderingServer.frame_post_draw
-		get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://shots/anim_%02d.png" % i))
+		var img := get_viewport().get_texture().get_image()
+		var sp: Vector2 = h.position - run.world.camera.get_screen_center_position() + Vector2(240, 135)
+		var r := Rect2i(int(sp.x) - 40, int(sp.y) - 40, 80, 50).intersection(Rect2i(0, 0, 480, 270))
+		img.get_region(r).save_png(ProjectSettings.globalize_path("res://shots/anim_%02d.png" % i))
 	get_tree().quit()
 
 

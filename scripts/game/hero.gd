@@ -61,6 +61,7 @@ func setup_hero(w: Node, m: HeroModel, pid: int, local: bool) -> void:
 # --- Tick -----------------------------------------------------------------------
 
 func tick(dt: float) -> void:
+	queue_redraw()
 	anim_t += dt
 	companion_t += dt
 	flash_t = maxf(0.0, flash_t - dt)
