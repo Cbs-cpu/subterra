@@ -32,6 +32,7 @@ var coop_ip := "127.0.0.1"
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	rng.randomize()
+	Console.main = self
 	c_rolled = HeroModel.roll_stats(rng)
 	ui_layer = CanvasLayer.new()
 	ui_layer.layer = 30
@@ -609,6 +610,15 @@ func _shots() -> void:
 		await _shot("05_" + b, 1.0)
 	run.enter_town("tundra")
 	await _shot("06_pueblo", 1.0)
+	Console.open = true
+	Console.show_stats = true
+	for c in ["info", "give espada_oro 1", "spawn limo_verde 2", "coins 500", "list biomes"]:
+		Console.log_line("> " + c, Color("#fff08a"))
+		Console.exec(c)
+	Console.input = "spawn ara"
+	await _shot("06b_consola", 0.4)
+	Console.open = false
+	Console.show_stats = false
 	run.district = 21
 	run.enter_district("nido")
 	await _shot("07_nido", 1.5)

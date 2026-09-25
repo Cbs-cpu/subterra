@@ -52,7 +52,7 @@ func local_hero() -> Hero:
 
 
 func blocks_game_input() -> bool:
-	return panel != "" and panel != "mapa"
+	return (panel != "" and panel != "mapa") or Console.open
 
 
 func _process(dt: float) -> void:

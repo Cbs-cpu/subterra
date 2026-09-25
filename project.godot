@@ -21,6 +21,7 @@ Art="*res://scripts/art/art.gd"
 Sfx="*res://scripts/autoload/sfx.gd"
 Music="*res://scripts/autoload/music.gd"
 Net="*res://scripts/net/net.gd"
+Console="*res://scripts/autoload/console.gd"
 
 [debug]
 

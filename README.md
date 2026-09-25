@@ -56,6 +56,9 @@ En *Cooperativo*, uno pulsa **Crear partida** (puerto 7777) y los demás escribe
 "C:/Users/Cobos/Desktop/Godot_v4.6.3-stable_win64_console.exe" --headless --path . -s res://tools/export_art.gd
 ```
 
+### Consola de depuración
+Pulsa **º** (tecla bajo Esc) o **F12**. `help` lista los comandos; **Tab** autocompleta (también ids de objetos, enemigos y biomas) y **↑/↓** recorren el historial. Algunos: `give <objeto> [n]`, `spawn <enemigo> [n]`, `kill`, `heal`, `god`, `noclip`, `level <n>`, `coins <n>`, `stat atk 5`, `skill <id>`, `district <bioma> [n]`, `town`, `door <n>`, `final`, `exit`, `reveal`, `time <s>`, `speed <x>`, `unlock all`, `info`, `stats` (FPS y entidades). En cooperativo los trucos solo funcionan en el anfitrión.
+
 Argumentos tras `--`: `--play` (partida directa), `--shots` (capturas en `shots/`), `--host-test` y `--join-test` (prueba de red en local).
 
 - `scripts/core/` contiene la lógica pura y testeada: objetos, recetas, inventario, héroe, combate, desbloqueos, contenido y generador de distritos.

@@ -20,6 +20,9 @@ var down_pressed := false
 ## Lee la entrada local. ui_open bloquea las acciones de juego (sigue permitiendo moverse).
 static func from_local(world_aim: Vector2, ui_open: bool) -> InputState:
 	var s := InputState.new()
+	if Console.open:
+		s.aim = world_aim
+		return s
 	s.move = Vector2(Input.get_axis("left", "right"), Input.get_axis("up", "down"))
 	s.jump = Input.is_action_pressed("jump")
 	s.jump_pressed = Input.is_action_just_pressed("jump")
