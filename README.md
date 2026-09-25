@@ -3,6 +3,7 @@
 Roguelike de plataformas 2D con recolección y crafteo, **clon mecánico de *Magicite*** (SmashGames, 2014) hecho en Godot 4.6.
 Tala, mina, combina objetos de dos en dos, baja 20 distritos eligiendo bioma en cada puerta, visita pueblos, sobrevive al hambre y a los guardianes de la Ceniza y derriba el Muro de Ceniza. Solo o en cooperativo online de hasta 4 jugadores.
 
+![Portada](docs/img/portada.png)
 ![Combate](docs/img/combate.png)
 ![Mazmorra](docs/img/mazmorra.png)
 
@@ -18,7 +19,8 @@ Tala, mina, combina objetos de dos en dos, baja 20 distritos eligiendo bioma en 
 - **Desbloqueos permanentes** evaluados al terminar la partida, más estadísticas globales, libro de recetas y guardado en el pueblo.
 - **Modos Normal y Demente.** Cooperativo online por IP (ENet, anfitrión autoritativo).
 - **Movimiento:** aceleración, tiempo de coyote, búfer de salto, salto variable, doble salto, dash con invulnerabilidad e interpolación de física.
-- **Presentación estilo Magicite:** personajes chibi animados, penumbra con luces 2D, terreno denso con musgo, decoración de fondo, estelas brillantes, interfaz de paneles marrones y música chiptune por bioma.
+- **Presentación estilo Magicite:** personajes chibi animados, penumbra con luces 2D, terreno denso con musgo, decoración de fondo, estelas brillantes y música chiptune por bioma.
+- **Interfaz en alta resolución** con paleta verde y amarilla: portada vectorial animada, menús y HUD con texto nítido que nunca se solapa. El mundo sigue siendo pixel art de píxel uniforme (se dibuja a 480x270 en un SubViewport y se amplía en múltiplos enteros).
 
 ## Jugar
 
@@ -71,12 +73,12 @@ cd ../.. && python tools/hf_to_sprites.py   # escribe assets/sprites/pj/ (+ .hf_
 
 El resto de razas, vecinos y enemigos siguen generándose por código (`scripts/art/`).
 
-Argumentos tras `--`: `--play` (partida directa), `--shots` (capturas en `shots/`), `--host-test` y `--join-test` (prueba de red en local).
+Argumentos tras `--`: `--play` (partida directa), `--shots` (capturas en `shots/`), `--ui-audit` (recorre todas las pantallas y paneles, guarda `shots/ui_*.png` y avisa de cualquier texto que se solape o se salga de la pantalla), `--host-test` y `--join-test` (prueba de red en local).
 
 - `scripts/core/` contiene la lógica pura y testeada: objetos, recetas, inventario, héroe, combate, desbloqueos, contenido y generador de distritos.
 - `scripts/game/` contiene el mundo, el héroe, los enemigos y jefes, los proyectiles, recursos, trampas, el pueblo y la partida.
 - `scripts/art/` contiene el arte procedural: humanoides, criaturas, iconos, props y paletas por bioma.
-- `scripts/ui/` contiene la interfaz de partida y la fuente pixelada.
+- `scripts/ui/` contiene la interfaz: `ui_kit.gd` (paleta, tipografías, texto que se ajusta a su caja y auditoría de solapes), `game_ui.gd` (HUD y paneles de partida), `menus.gd` (opciones y controles), `title_backdrop.gd` (fondo animado de la portada) y la fuente pixelada.
 - `scripts/net/` contiene el cooperativo.
 - `shaders/` contiene el terreno y el fondo parallax.
 

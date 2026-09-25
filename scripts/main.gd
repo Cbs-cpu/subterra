@@ -1,11 +1,23 @@
 extends Node
 ## Escena principal: título, creación de personaje, cooperativo, desbloqueos, opciones y final.
+##
+## La interfaz (480x270 lógicos, capa a escala x2) se dibuja a resolución nativa: texto y
+## formas nítidas. El mundo va en el SubViewport de Run (320x180 x3), con píxel uniforme.
 
-const COL_TXT := Color("#f0e8d8")
-const COL_DIM := Color("#8a8098")
-const COL_GOLD := Color("#f0c03a")
+const BACK_BTN := Rect2(14, 242, 76, 18)
+const CR_LEFT := Rect2(14, 42, 128, 188)
+const CR_FORM := Rect2(150, 42, 186, 188)
+const CR_INFO := Rect2(344, 42, 122, 188)
+const CR_ROWS := ["nombre", "raza", "sombrero", "companero", "rasgo1", "rasgo2", "modo", "semilla"]
+const CR_LABELS := {"nombre": "Nombre", "raza": "Raza", "sombrero": "Sombrero", "companero": "Compañero",
+	"rasgo1": "Rasgo 1", "rasgo2": "Rasgo 2", "modo": "Modo", "semilla": "Semilla"}
+const STAT_NAMES := {"runs": "Partidas jugadas", "wins": "Victorias", "kills": "Enemigos derrotados",
+	"golden_chests": "Cofres dorados", "deaths": "Muertes", "best_district": "Mejor distrito"}
 
-var screen := "titulo"      # titulo, crear, coop, galeria, opciones, controles, final
+var screen := "titulo"      # titulo, crear, coop, galeria, opciones, controles, final, juego
+var backdrop: TitleBackdrop
+var logo_back: Node2D
+var logo_fill: Node2D
 var draw_node: Node2D
 var ui_layer: CanvasLayer
 var game_ui: GameUI
@@ -22,11 +34,14 @@ var c_traits := [0, 8]
 var c_rolled := {}
 var c_madman := false
 var c_seed := ""
+var c_focus := "raza"
 var editing := ""            # "nombre", "semilla", "ip"
 var rng := RandomNumberGenerator.new()
 var gallery_tab := 0
 var rebinding := ""
 var coop_ip := "127.0.0.1"
+var title_sel := 0
+var title_mouse := Vector2(-1, -1)
 
 
 func _ready() -> void:
@@ -38,6 +53,18 @@ func _ready() -> void:
 	ui_layer.layer = 30
 	ui_layer.scale = Vector2(2, 2)
 	add_child(ui_layer)
+	backdrop = TitleBackdrop.new()
+	ui_layer.add_child(backdrop)
+	logo_back = Node2D.new()
+	logo_back.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	logo_back.draw.connect(_draw_logo_back)
+	ui_layer.add_child(logo_back)
+	logo_fill = Node2D.new()
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://shaders/logo.gdshader")
+	logo_fill.material = mat
+	logo_fill.draw.connect(_draw_logo_fill)
+	ui_layer.add_child(logo_fill)
 	draw_node = Node2D.new()
 	draw_node.draw.connect(_draw_screen)
 	ui_layer.add_child(draw_node)
@@ -49,6 +76,8 @@ func _ready() -> void:
 		_start_single(12345)
 	if "--shots" in args:
 		_shots.call_deferred()
+	if "--ui-audit" in args:
+		_ui_audit.call_deferred()
 	if "--anim-test" in args:
 		_anim_test.call_deferred()
 	if "--host-test" in args:
@@ -59,8 +88,16 @@ func _ready() -> void:
 
 func _process(dt: float) -> void:
 	t += dt
-	draw_node.visible = screen != "juego"
-	draw_node.queue_redraw()
+	var menus := screen != "juego"
+	backdrop.visible = menus
+	backdrop.set_dimmed(screen != "titulo")
+	logo_back.visible = screen == "titulo"
+	logo_fill.visible = screen == "titulo"
+	draw_node.visible = menus
+	if menus:
+		draw_node.queue_redraw()
+		logo_back.queue_redraw()
+		logo_fill.queue_redraw()
 
 
 # --- Partidas ------------------------------------------------------------------------------
@@ -97,27 +134,26 @@ func _on_net_start(config: Dictionary) -> void:
 	_begin_run(config)
 
 
+func _end_world() -> void:
+	if run:
+		run.queue_free()
+		run = null
+	if game_ui:
+		game_ui.queue_free()
+		game_ui = null
+
+
 func _on_run_end(r: Dictionary) -> void:
 	result = r
 	await get_tree().create_timer(1.0).timeout
 	screen = "final"
 	if r["won"]:
 		Sfx.play("victoria")
-	if run:
-		run.queue_free()
-		run = null
-	if game_ui:
-		game_ui.queue_free()
-		game_ui = null
+	_end_world()
 
 
 func _to_title() -> void:
-	if run:
-		run.queue_free()
-		run = null
-	if game_ui:
-		game_ui.queue_free()
-		game_ui = null
+	_end_world()
 	Net.leave()
 	screen = "titulo"
 	Music.play_biome("titulo")
@@ -164,6 +200,20 @@ func _unhandled_input(ev: InputEvent) -> void:
 	if ev.is_action_pressed("pause") and screen != "titulo":
 		screen = "titulo" if screen != "controles" else "opciones"
 		return
+	# Portada: también con teclado (flechas / W S y Enter o Espacio).
+	if screen == "titulo" and ev is InputEventKey and ev.pressed and not ev.echo:
+		var n := _title_items().size()
+		match ev.keycode:
+			KEY_UP, KEY_W:
+				title_sel = wrapi(title_sel - 1, 0, n)
+				Sfx.play("menu")
+			KEY_DOWN, KEY_S:
+				title_sel = wrapi(title_sel + 1, 0, n)
+				Sfx.play("menu")
+			KEY_ENTER, KEY_KP_ENTER, KEY_SPACE:
+				Sfx.play("menu")
+				_title_pick(_title_items()[title_sel])
+		return
 	if ev is InputEventMouseButton and ev.pressed:
 		var m := draw_node.get_local_mouse_position()
 		for b in _buttons():
@@ -185,51 +235,57 @@ func _buttons() -> Array:
 			var items := _title_items()
 			for k in items.size():
 				var item: String = items[k]
-				_btn(out, Rect2(180, 120 + k * 18, 120, 16), func(_b): _title_pick(item))
+				_btn(out, _title_rect(k), func(_b): _title_pick(item))
 		"crear":
 			var races := _owned_list("race", Content.RACES)
 			var hats := _owned_list("hat", Content.HATS)
 			var comps := _owned_list("companion", Content.COMPANIONS)
-			_btn(out, Rect2(170, 34, 120, 12), func(_b): editing = "nombre")
-			_btn(out, Rect2(150, 54, 14, 12), func(_b): c_race = wrapi(c_race - 1, 0, races.size()))
-			_btn(out, Rect2(296, 54, 14, 12), func(_b): c_race = wrapi(c_race + 1, 0, races.size()))
-			_btn(out, Rect2(150, 72, 14, 12), func(_b): c_hat = wrapi(c_hat - 1, 0, hats.size()))
-			_btn(out, Rect2(296, 72, 14, 12), func(_b): c_hat = wrapi(c_hat + 1, 0, hats.size()))
-			_btn(out, Rect2(150, 90, 14, 12), func(_b): c_comp = wrapi(c_comp - 1, 0, comps.size()))
-			_btn(out, Rect2(296, 90, 14, 12), func(_b): c_comp = wrapi(c_comp + 1, 0, comps.size()))
-			for k in 2:
-				var kk := k
-				_btn(out, Rect2(170, 110 + k * 16, 140, 13), func(b): _cycle_trait(kk, 1 if b == MOUSE_BUTTON_LEFT else -1))
-			_btn(out, Rect2(330, 176, 70, 13), func(_b): c_rolled = HeroModel.roll_stats(rng))
-			_btn(out, Rect2(170, 150, 140, 13), func(_b): c_madman = not c_madman)
-			_btn(out, Rect2(170, 166, 140, 13), func(_b): editing = "semilla")
-			_btn(out, Rect2(180, 226, 120, 18), func(_b): _start_single(int(c_seed) if c_seed != "" else rng.randi() % 1000000))
-			_btn(out, Rect2(20, 240, 70, 14), func(_b): screen = "titulo")
+			for id in CR_ROWS:
+				var row := _cr_row(id)
+				match id:
+					"nombre": _btn(out, _cr_ctrl(row), func(_b): editing = "nombre"; c_focus = "nombre")
+					"semilla": _btn(out, _cr_ctrl(row), func(_b): editing = "semilla"; c_focus = "semilla")
+					"modo": _btn(out, _cr_ctrl(row), func(_b): c_madman = not c_madman; c_focus = "modo")
+					_:
+						var step := func(d: int) -> void:
+							c_focus = id
+							match id:
+								"raza": c_race = wrapi(c_race + d, 0, races.size())
+								"sombrero": c_hat = wrapi(c_hat + d, 0, hats.size())
+								"companero": c_comp = wrapi(c_comp + d, 0, comps.size())
+								"rasgo1": _cycle_trait(0, d)
+								"rasgo2": _cycle_trait(1, d)
+						_btn(out, _cr_arrow(row, -1), func(_b): step.call(-1))
+						_btn(out, _cr_arrow(row, 1), func(_b): step.call(1))
+						_btn(out, _cr_value(row), func(b): step.call(1 if b == MOUSE_BUTTON_LEFT else -1))
+			_btn(out, _cr_reroll(), func(_b): c_rolled = HeroModel.roll_stats(rng))
+			_btn(out, _cr_start(), func(_b): _start_single(int(c_seed) if c_seed != "" else rng.randi() % 1000000))
+			_btn(out, BACK_BTN, func(_b): screen = "titulo")
 		"coop":
-			_btn(out, Rect2(120, 70, 110, 16), func(_b): Net.host(7777, _hero_config(1)))
-			_btn(out, Rect2(250, 90, 110, 16), func(_b): Net.join(coop_ip, 7777, _hero_config(0)))
-			_btn(out, Rect2(250, 70, 110, 16), func(_b): editing = "ip")
+			_btn(out, Rect2(72, 118, 146, 18), func(_b): Net.host(7777, _hero_config(1)))
+			_btn(out, Rect2(262, 96, 146, 16), func(_b): editing = "ip")
+			_btn(out, Rect2(262, 118, 146, 18), func(_b): Net.join(coop_ip, 7777, _hero_config(0)))
 			if Net.is_host():
-				_btn(out, Rect2(180, 220, 120, 16), func(_b): Net.start(rng.randi() % 1000000, c_madman))
-			_btn(out, Rect2(20, 240, 70, 14), func(_b): Net.leave(); screen = "titulo")
+				_btn(out, Rect2(336, 242, 130, 18), func(_b): Net.start(rng.randi() % 1000000, c_madman))
+			_btn(out, BACK_BTN, func(_b): Net.leave(); screen = "titulo")
 		"galeria":
 			for k in 4:
 				var kk := k
-				_btn(out, Rect2(60 + k * 92, 26, 88, 14), func(_b): gallery_tab = kk)
-			_btn(out, Rect2(20, 240, 70, 14), func(_b): screen = "titulo")
+				_btn(out, _tab_rect(k), func(_b): gallery_tab = kk)
+			_btn(out, BACK_BTN, func(_b): screen = "titulo")
 		"opciones":
-			for k in 5:
+			var rows := Menus.option_rows()
+			for k in rows.size():
 				var kk := k
-				_btn(out, Rect2(130, 70 + k * 18, 220, 16), func(b): _option(kk, b))
-			_btn(out, Rect2(20, 240, 70, 14), func(_b): screen = "titulo")
+				_btn(out, rows[k], func(b): _option_click(kk, b))
+			_btn(out, BACK_BTN, func(_b): screen = "titulo")
 		"controles":
-			var keys := Game.LABELS.keys()
-			for k in keys.size():
-				var a: String = keys[k]
-				_btn(out, Rect2(120, 36 + k * 13, 240, 12), func(_b): rebinding = a)
-			_btn(out, Rect2(20, 240, 70, 14), func(_b): screen = "opciones")
+			for e in Menus.control_rows():
+				var a: String = e["a"]
+				_btn(out, e["r"], func(_b): rebinding = a)
+			_btn(out, BACK_BTN, func(_b): screen = "opciones")
 		"final":
-			_btn(out, Rect2(180, 228, 120, 16), func(_b): _to_title())
+			_btn(out, Rect2(170, 242, 140, 18), func(_b): _to_title())
 	return out
 
 
@@ -239,6 +295,10 @@ func _title_items() -> Array:
 		items.append("Continuar")
 	items.append_array(["Cooperativo", "Desbloqueos", "Opciones", "Salir"])
 	return items
+
+
+func _title_rect(k: int) -> Rect2:
+	return Rect2(170, 128 + k * 18, 140, 16)
 
 
 func _title_pick(item: String) -> void:
@@ -265,6 +325,11 @@ func _title_pick(item: String) -> void:
 			get_tree().quit()
 
 
+func _option_click(k: int, button: int) -> void:
+	if Menus.option_click(k, button, _mouse()):
+		screen = "controles"
+
+
 func _cycle_trait(k: int, d: int) -> void:
 	var other: int = c_traits[1 - k]
 	var v: int = c_traits[k]
@@ -275,40 +340,46 @@ func _cycle_trait(k: int, d: int) -> void:
 	c_traits[k] = v
 
 
-func _option(k: int, button: int) -> void:
-	var d := 0.1 if button == MOUSE_BUTTON_LEFT else -0.1
-	match k:
-		0: Game.settings["sfx"] = clampf(Game.settings["sfx"] + d, 0.0, 1.0)
-		1: Game.settings["music"] = clampf(Game.settings["music"] + d, 0.0, 1.0)
-		2: Game.settings["fullscreen"] = not Game.settings["fullscreen"]
-		3: Game.settings["shake"] = not Game.settings["shake"]
-		4: screen = "controles"
-	Game.apply_settings()
-	Game.save_profile()
+# --- Geometría de la creación de personaje ------------------------------------------------------
+
+func _cr_row(id: String) -> Rect2:
+	var k := CR_ROWS.find(id)
+	return Rect2(CR_FORM.position.x + 8, CR_FORM.position.y + 26 + k * 19.5, CR_FORM.size.x - 16, 16)
+
+func _cr_ctrl(row: Rect2) -> Rect2:
+	return Rect2(row.position.x + 50, row.position.y, row.size.x - 50, row.size.y)
+
+func _cr_arrow(row: Rect2, dir: int) -> Rect2:
+	var c := _cr_ctrl(row)
+	return Rect2(c.position.x if dir < 0 else c.end.x - 15, c.position.y, 15, c.size.y)
+
+func _cr_value(row: Rect2) -> Rect2:
+	var c := _cr_ctrl(row)
+	return Rect2(c.position.x + 17, c.position.y, c.size.x - 34, c.size.y)
+
+func _cr_reroll() -> Rect2:
+	return Rect2(CR_INFO.position.x + 8, CR_INFO.end.y - 24, CR_INFO.size.x - 16, 16)
+
+func _cr_start() -> Rect2:
+	return Rect2(326, 242, 140, 18)
+
+func _tab_rect(k: int) -> Rect2:
+	return Rect2(48 + k * 98, 38, 92, 16)
 
 
 # --- Dibujo ----------------------------------------------------------------------------------
 
-func _bg() -> void:
-	var c := draw_node
-	c.draw_rect(Rect2(0, 0, 480, 270), Color("#0e0a14"))
-	for k in 40:
-		var x := fmod(k * 53.0 + t * (4.0 + k % 5), 500.0) - 10.0
-		var y := fmod(k * 37.0, 270.0)
-		c.draw_rect(Rect2(x, y, 1, 1), Color(0.6, 0.9, 0.6, 0.3 + 0.3 * sin(t * 2.0 + k)))
-	for k in 12:
-		var h := 30.0 + fmod(k * 71.0, 60.0)
-		c.draw_rect(Rect2(k * 42 - 6, 0, 28, h), Color("#1a1422"))
-		c.draw_rect(Rect2(k * 42 + 4, h, 8, 12), Color("#1a1422"))
-	c.draw_rect(Rect2(0, 230, 480, 40), Color("#1a1422"))
-	c.draw_rect(Rect2(0, 230, 480, 3), Color("#2e6a2a"))
+func _mouse() -> Vector2:
+	return draw_node.get_local_mouse_position()
 
 
-func _button(r: Rect2, label: String, hl := false, col := COL_TXT) -> void:
-	var hov := r.has_point(draw_node.get_local_mouse_position())
-	draw_node.draw_rect(r, Color("#3a2e50") if hov or hl else Color("#221c2e"))
-	draw_node.draw_rect(r, Color("#6a5a8a"), false, 1.0)
-	PixelFont.draw_centered(draw_node, r.get_center().x, r.position.y + (r.size.y - 5) / 2.0, label, col)
+func _heading(s: String, y: float = 10.0) -> void:
+	UiKit.text(draw_node, Vector2(240, y), s, UiKit.H, UiKit.YELLOW, 1, {"kind": "display", "shadow": true, "max_w": 440})
+	UiKit.ornament(draw_node, Vector2(240, y + UiKit.line_h(UiKit.H, "display") + 3), 70, Color(UiKit.GOLD, 0.8))
+
+
+func _back_button() -> void:
+	UiKit.button(draw_node, BACK_BTN, "‹  Volver", BACK_BTN.has_point(_mouse()))
 
 
 func _draw_screen() -> void:
@@ -317,8 +388,12 @@ func _draw_screen() -> void:
 		"crear": _draw_create()
 		"coop": _draw_coop()
 		"galeria": _draw_gallery()
-		"opciones": _draw_options()
-		"controles": _draw_controls()
+		"opciones":
+			Menus.draw_options(draw_node, _mouse())
+			_back_button()
+		"controles":
+			Menus.draw_controls(draw_node, _mouse(), rebinding)
+			_back_button()
 		"final": _draw_final()
 
 
@@ -329,193 +404,374 @@ func _draw_frame(f: Dictionary, feet: Vector2, s: int) -> void:
 	draw_node.draw_texture_rect(tex, Rect2(feet - og * s, tex.get_size() * s), false)
 
 
+# Logotipo: halo, sombra y contorno (capa de atrás) + relleno dorado con shader (delante).
+const LOGO := "SUBTERRA"
+const LOGO_SIZE := 46
+const LOGO_SPACING := 3.0
+const LOGO_Y := 34.0
+
+
+func _logo_opts(extra: Dictionary) -> Dictionary:
+	var o := {"kind": "display", "spacing": LOGO_SPACING, "no_audit": true}
+	o.merge(extra, true)
+	return o
+
+
+func _draw_logo_back() -> void:
+	var c := logo_back
+	var breathe := 0.85 + 0.15 * sin(t * 1.3)
+	UiKit.glow(c, Vector2(240, LOGO_Y + 26), 170.0, Color(0.98, 0.78, 0.25, 0.16 * breathe))
+	UiKit.glow(c, Vector2(240, LOGO_Y + 26), 90.0, Color(0.7, 0.95, 0.4, 0.10 * breathe))
+	UiKit.text(c, Vector2(240, LOGO_Y + 2.2), LOGO, LOGO_SIZE, Color(0, 0.02, 0.01, 0.55), 1, _logo_opts({}))
+	UiKit.text(c, Vector2(240, LOGO_Y), LOGO, LOGO_SIZE, Color("#0c2a16"), 1, _logo_opts({"outline": 4, "outline_col": Color("#0c2a16")}))
+
+
+func _draw_logo_fill() -> void:
+	var r := UiKit.text(logo_fill, Vector2(240, LOGO_Y), LOGO, LOGO_SIZE, Color.WHITE, 1, _logo_opts({"no_audit": false}))
+	var f := UiKit.font("display")
+	var mat: ShaderMaterial = logo_fill.material
+	var base := r.position.y + f.get_ascent(LOGO_SIZE)
+	mat.set_shader_parameter("y_top", base - f.get_ascent(LOGO_SIZE) * 0.72)
+	mat.set_shader_parameter("y_bot", base)
+	mat.set_shader_parameter("shine_x", lerpf(r.position.x - 80.0, r.end.x + 160.0, fmod(t * 0.22, 1.0)))
+
+
 func _draw_title() -> void:
-	_bg()
-	PixelFont.draw_centered(draw_node, 240, 36, "Subterra", COL_GOLD, 5)
-	PixelFont.draw_centered(draw_node, 240, 72, "tala, mina, combina y baja más hondo", COL_DIM)
-	var f := Art.hero_frame("minero", "run", int(t * 10.0))
-	_draw_frame(f, Vector2(80, 202), 3)
+	var c := draw_node
+	var m := _mouse()
+	var logo_bottom := LOGO_Y + UiKit.line_h(LOGO_SIZE, "display")
+	UiKit.ornament(c, Vector2(240, logo_bottom + 4), 96, Color(UiKit.GOLD, 0.85))
+	UiKit.text(c, Vector2(240, logo_bottom + 10), "TALA  ·  MINA  ·  COMBINA  ·  DESCIENDE", UiKit.S, UiKit.LIME, 1, {"spacing": 0.8, "shadow": true})
 	var items := _title_items()
+	if m != title_mouse:
+		title_mouse = m
+		for k in items.size():
+			if _title_rect(k).has_point(m):
+				title_sel = k
+	title_sel = clampi(title_sel, 0, items.size() - 1)
 	for k in items.size():
-		_button(Rect2(180, 120 + k * 18, 120, 16), items[k])
-	PixelFont.draw(draw_node, Vector2(6, 262), "partidas %d  ·  victorias %d  ·  mejor distrito %d" % [Game.global_stats["runs"], Game.global_stats["wins"], Game.global_stats["best_district"]], COL_DIM)
+		var r := _title_rect(k)
+		var on := k == title_sel
+		var ty := r.position.y + (r.size.y - UiKit.line_h(UiKit.L, "bold")) / 2.0
+		if on:
+			UiKit.box(c, r, Color(UiKit.GOLD, 0.10), Color(UiKit.GOLD, 0.35), 8)
+			var tw := UiKit.text_w(items[k], UiKit.L, "bold")
+			var bob := sin(t * 5.0) * 1.2
+			UiKit.diamond(c, Vector2(240 - tw / 2.0 - 9 - bob, r.get_center().y), 2.4, UiKit.YELLOW)
+			UiKit.diamond(c, Vector2(240 + tw / 2.0 + 9 + bob, r.get_center().y), 2.4, UiKit.YELLOW)
+		UiKit.text(c, Vector2(240, ty), items[k], UiKit.L, UiKit.YELLOW if on else UiKit.TEXT, 1, {"kind": "bold", "shadow": true})
+	# Pie: estadísticas globales en fichas.
+	var chips := ["Partidas  %d" % Game.global_stats["runs"], "Victorias  %d" % Game.global_stats["wins"],
+		"Mejor distrito  %d" % Game.global_stats["best_district"]]
+	var widths := chips.map(func(s): return UiKit.text_w(s, UiKit.S) + 14.0)
+	var total: float = widths.reduce(func(a, b): return a + b, 0.0) + 8.0 * (chips.size() - 1)
+	var x := 240.0 - total / 2.0
+	for i in chips.size():
+		var r2 := Rect2(x, 248, widths[i], 13)
+		UiKit.box(c, r2, Color(UiKit.INK, 0.55), Color(UiKit.LINE, 0.8), 6)
+		UiKit.text(c, Vector2(r2.get_center().x, r2.position.y + (13 - UiKit.line_h(UiKit.S)) / 2.0), chips[i], UiKit.S, UiKit.TEXT_DIM, 1)
+		x += widths[i] + 8.0
 
 
 func _draw_create() -> void:
-	_bg()
-	PixelFont.draw_centered(draw_node, 240, 12, "Nuevo personaje", COL_GOLD, 2)
+	var c := draw_node
+	var m := _mouse()
 	var races := _owned_list("race", Content.RACES)
 	var hats := _owned_list("hat", Content.HATS)
 	var comps := _owned_list("companion", Content.COMPANIONS)
 	var race: Dictionary = races[c_race % races.size()]
 	var hat: Dictionary = hats[c_hat % hats.size()]
 	var comp: Dictionary = comps[c_comp % comps.size()]
-	_button(Rect2(170, 34, 120, 12), c_name + ("_" if editing == "nombre" and int(t * 3.0) % 2 == 0 else ""), editing == "nombre")
-	PixelFont.draw(draw_node, Vector2(120, 37), "Nombre", COL_DIM)
-	for row in [[54, "Raza", race["name"]], [72, "Sombrero", hat["name"]], [90, "Compañero", comp["name"]]]:
-		PixelFont.draw(draw_node, Vector2(100, row[0] + 3), row[1], COL_DIM)
-		_button(Rect2(150, row[0], 14, 12), "<")
-		_button(Rect2(296, row[0], 14, 12), ">")
-		PixelFont.draw_centered(draw_node, 230, row[0] + 3, row[2], COL_TXT)
-	for k in 2:
-		var tr: Dictionary = Content.TRAITS[c_traits[k]]
-		PixelFont.draw(draw_node, Vector2(118, 113 + k * 16), "Rasgo %d" % (k + 1), COL_DIM)
-		_button(Rect2(170, 110 + k * 16, 140, 13), tr["name"])
-		PixelFont.draw(draw_node, Vector2(316, 113 + k * 16), tr["desc"], COL_DIM)
-	_button(Rect2(170, 150, 140, 13), "Modo: " + ("DEMENTE" if c_madman else "Normal"), c_madman, Color("#ff7a9a") if c_madman else COL_TXT)
-	_button(Rect2(170, 166, 140, 13), "Semilla: " + (c_seed if c_seed != "" else "aleatoria") + ("_" if editing == "semilla" and int(t * 3.0) % 2 == 0 else ""), editing == "semilla")
-	# Estadísticas.
-	var b: Dictionary = c_rolled["base"]
-	var g: Dictionary = c_rolled["growth"]
-	var y := 180
-	PixelFont.draw(draw_node, Vector2(330, 164), "Estadísticas", COL_GOLD)
-	var rs: Dictionary = race["stats"]
-	var x := 170
-	for pair in [["Vida", "hp"], ["Ataque", "atk"], ["Destreza", "dex"], ["Magia", "mag"]]:
-		var gc = [Color("#e05a5a"), COL_TXT, Color("#6ae05a")][g[pair[1]]]
-		var v: int = b[pair[1]] + int(rs.get(pair[1], 0))
-		PixelFont.draw(draw_node, Vector2(x, 196), "%s %d" % [pair[0], v], gc)
-		x += 50
-	_button(Rect2(330, 176, 70, 13), "Volver a tirar")
-	PixelFont.draw(draw_node, Vector2(170, 206), "verde: crece rápido  ·  rojo: crece despacio", COL_DIM)
-	# Vista previa.
+	_heading("Nuevo personaje", 6)
+	# --- Tarjeta izquierda: vista previa y raza.
+	UiKit.panel(c, CR_LEFT)
+	var pv := Rect2(CR_LEFT.position.x + 8, CR_LEFT.position.y + 8, CR_LEFT.size.x - 16, 86)
+	UiKit.box(c, pv, Color(UiKit.BG_DEEP, 0.7), Color(UiKit.LINE, 0.6), 4)
 	var f := Art.hero_frame(race["id"], "run", int(t * 10.0))
-	var feet := Vector2(60, 146)
+	var feet := Vector2(pv.get_center().x, pv.end.y - 6)
 	_draw_frame(f, feet, 3)
 	var ht = Art.hat(hat["id"])
 	if ht:
 		var hp: Vector2 = feet + (Vector2(f["head"]) - Vector2(f["origin"]) + Vector2(-6, -10)) * 3.0
-		draw_node.draw_texture_rect(ht, Rect2(hp, ht.get_size() * 3.0), false)
+		c.draw_texture_rect(ht, Rect2(hp, ht.get_size() * 3.0), false)
 	var cp = Art.companion(comp["id"], int(t * 6.0))
 	if cp:
-		draw_node.draw_texture_rect(cp, Rect2(88, 60 + sin(t * 3.0) * 4.0, 24, 24), false)
-	PixelFont.draw_centered(draw_node, 60, 156, PixelFont.wrap(race["desc"], 24), COL_DIM)
+		c.draw_texture_rect(cp, Rect2(Vector2(pv.end.x - 30, pv.position.y + 10 + sin(t * 3.0) * 3.0), Vector2(24, 24)), false)
+	var y := pv.end.y + 5
+	UiKit.text(c, Vector2(CR_LEFT.get_center().x, y), race["name"], UiKit.M, UiKit.YELLOW, 1, {"kind": "bold", "max_w": pv.size.x})
+	y += UiKit.line_h(UiKit.M) + 3
 	var items: Array = race["items"]
-	PixelFont.draw_centered(draw_node, 60, 205, "Empieza con:", COL_GOLD)
+	var icons_y := CR_LEFT.end.y - 20
+	UiKit.paragraph(c, Rect2(pv.position.x, y, pv.size.x, icons_y - 14 - y), race["desc"], UiKit.S, UiKit.TEXT_DIM, 1)
+	UiKit.text(c, Vector2(CR_LEFT.get_center().x, icons_y - 11), "EMPIEZA CON", UiKit.XS, UiKit.TEXT_MUTE, 1, {"kind": "bold", "spacing": 0.6})
 	for i in items.size():
-		draw_node.draw_texture(Art.icon(items[i]), Vector2(60 - items.size() * 7 + i * 14, 213))
-	PixelFont.draw(draw_node, Vector2(330, 54), PixelFont.wrap(hat["desc"], 32), Color("#c0b8f0"))
-	PixelFont.draw(draw_node, Vector2(330, 90), PixelFont.wrap(comp["desc"], 32), Color("#c0f0b8"))
-	_button(Rect2(180, 226, 120, 18), "¡Bajar a Hondura!", false, COL_GOLD)
-	_button(Rect2(20, 240, 70, 14), "Volver")
+		var ip := Vector2(CR_LEFT.get_center().x - items.size() * 8 + i * 16 + 2, icons_y)
+		UiKit.box(c, Rect2(ip - Vector2(1, 1), Vector2(14, 14)), Color(UiKit.BG_DEEP, 0.7), Color(0, 0, 0, 0), 2)
+		c.draw_texture(Art.icon(items[i]), ip)
+	# --- Formulario central.
+	UiKit.panel(c, CR_FORM, "Personaje")
+	for id in CR_ROWS:
+		var row := _cr_row(id)
+		var ctrl := _cr_ctrl(row)
+		var hov := row.has_point(m)
+		if hov:
+			c_focus = id
+		var ly := row.position.y + (row.size.y - UiKit.line_h(UiKit.S)) / 2.0
+		UiKit.text(c, Vector2(row.position.x, ly), CR_LABELS[id], UiKit.S, UiKit.YELLOW if c_focus == id else UiKit.TEXT_DIM, 0, {"max_w": 46})
+		match id:
+			"nombre", "semilla":
+				var val: String = c_name if id == "nombre" else (c_seed if c_seed != "" else "aleatoria")
+				var ed: bool = editing == id
+				UiKit.box(c, ctrl, Color(UiKit.BG_DEEP, 0.8), UiKit.LIME if ed else (UiKit.LINE_HI if ctrl.has_point(m) else UiKit.LINE), 3)
+				var r := UiKit.text(c, Vector2(ctrl.position.x + 6, ctrl.position.y + (ctrl.size.y - UiKit.line_h(UiKit.M)) / 2.0), val,
+					UiKit.M, UiKit.TEXT if (id == "nombre" or c_seed != "") else UiKit.TEXT_MUTE, 0, {"max_w": ctrl.size.x - 14})
+				if ed and int(t * 2.5) % 2 == 0:
+					c.draw_rect(Rect2(r.end.x + 1, ctrl.position.y + 4, 0.8, ctrl.size.y - 8), UiKit.YELLOW)
+			"modo":
+				UiKit.button(c, ctrl, "Demente" if c_madman else "Normal", ctrl.has_point(m),
+					{"sel": c_madman, "col": Color("#ff8aa8") if c_madman else UiKit.TEXT, "size": UiKit.S})
+			_:
+				var val2 := ""
+				match id:
+					"raza": val2 = race["name"]
+					"sombrero": val2 = hat["name"]
+					"companero": val2 = comp["name"]
+					"rasgo1": val2 = Content.TRAITS[c_traits[0]]["name"]
+					"rasgo2": val2 = Content.TRAITS[c_traits[1]]["name"]
+				UiKit.box(c, ctrl, Color(UiKit.BG_DEEP, 0.55), Color(UiKit.LINE, 0.7), 3)
+				for dir in [-1, 1]:
+					var ar := _cr_arrow(row, dir)
+					var ah := ar.has_point(m)
+					UiKit.box(c, ar, UiKit.PANEL_SEL if ah else UiKit.PANEL_HI, UiKit.LINE_HI if ah else UiKit.LINE, 3)
+					UiKit.text(c, Vector2(ar.get_center().x, ar.position.y + (ar.size.y - UiKit.line_h(UiKit.M, "bold")) / 2.0 - 0.5),
+						"‹" if dir < 0 else "›", UiKit.M, UiKit.YELLOW if ah else UiKit.TEXT, 1, {"kind": "bold"})
+				var vr := _cr_value(row)
+				UiKit.text(c, Vector2(vr.get_center().x, vr.position.y + (vr.size.y - UiKit.line_h(UiKit.S)) / 2.0), val2,
+					UiKit.S, UiKit.TEXT, 1, {"max_w": vr.size.x - 4, "min_size": UiKit.XS})
+	# --- Panel derecho: detalles del campo enfocado y estadísticas.
+	UiKit.panel(c, CR_INFO)
+	var ix := CR_INFO.position.x + 8
+	var iw := CR_INFO.size.x - 16
+	var info := _focus_info(race, hat, comp)
+	y = CR_INFO.position.y + 8
+	UiKit.text(c, Vector2(ix, y), info[0].to_upper(), UiKit.XS, UiKit.TEXT_MUTE, 0, {"kind": "bold", "spacing": 0.6, "max_w": iw})
+	y += UiKit.line_h(UiKit.XS) + 1
+	UiKit.text(c, Vector2(ix, y), info[1], UiKit.M, UiKit.YELLOW, 0, {"kind": "bold", "max_w": iw})
+	y += UiKit.line_h(UiKit.M) + 2
+	var stats_y := CR_INFO.position.y + 94
+	UiKit.paragraph(c, Rect2(ix, y, iw, stats_y - 6 - y), info[2], UiKit.S, UiKit.TEXT_DIM)
+	c.draw_rect(Rect2(ix, stats_y - 3, iw, 0.6), Color(UiKit.LINE_HI, 0.6))
+	UiKit.text(c, Vector2(ix, stats_y), "Estadísticas", UiKit.S, UiKit.LIME, 0, {"kind": "bold"})
+	var b: Dictionary = c_rolled["base"]
+	var g: Dictionary = c_rolled["growth"]
+	var rs: Dictionary = race["stats"]
+	y = stats_y + UiKit.line_h(UiKit.S) + 2
+	for pair in [["Vida", "hp"], ["Ataque", "atk"], ["Destreza", "dex"], ["Magia", "mag"]]:
+		var gi: int = g[pair[1]]
+		var v: int = b[pair[1]] + int(rs.get(pair[1], 0))
+		UiKit.text(c, Vector2(ix, y), pair[0], UiKit.S, UiKit.TEXT, 0)
+		var vr2 := UiKit.text(c, Vector2(ix + iw - 10, y), str(v), UiKit.S, UiKit.TEXT, 2, {"kind": "bold"})
+		_growth_arrow(Vector2(ix + iw - 4, vr2.get_center().y), gi)
+		y += UiKit.line_h(UiKit.S) + 1.5
+	_growth_arrow(Vector2(ix + 3, y + 4.5), 2)
+	var lr := UiKit.text(c, Vector2(ix + 8, y), "rápido", UiKit.XS, UiKit.TEXT_MUTE, 0)
+	_growth_arrow(Vector2(lr.end.x + 7, y + 4.5), 0)
+	UiKit.text(c, Vector2(lr.end.x + 12, y), "lento", UiKit.XS, UiKit.TEXT_MUTE, 0)
+	UiKit.button(c, _cr_reroll(), "Volver a tirar", _cr_reroll().has_point(m), {"size": UiKit.S})
+	# --- Botones inferiores.
+	_back_button()
+	UiKit.button(c, _cr_start(), "¡Bajar a Hondura!", _cr_start().has_point(m), {"primary": true})
+
+
+func _growth_arrow(p: Vector2, g: int) -> void:
+	if g == 1:
+		draw_node.draw_circle(p, 1.2, UiKit.TEXT_MUTE, true, -1.0, true)
+		return
+	var up := g == 2
+	var col := UiKit.GREEN if up else UiKit.RED
+	var d := -1.0 if up else 1.0
+	draw_node.draw_colored_polygon(PackedVector2Array([p + Vector2(-2.6, -d * 1.6), p + Vector2(2.6, -d * 1.6), p + Vector2(0, d * 2.2)]), col)
+
+
+## [categoría, nombre, descripción] del campo enfocado en la creación de personaje.
+func _focus_info(race: Dictionary, hat: Dictionary, comp: Dictionary) -> Array:
+	match c_focus:
+		"nombre":
+			return ["Nombre", c_name if c_name != "" else "Sin nombre", "Hasta 12 letras. Haz clic en el campo y escribe."]
+		"sombrero":
+			return ["Sombrero", hat["name"], hat.get("desc", "")]
+		"companero":
+			return ["Compañero", comp["name"], comp.get("desc", "")]
+		"rasgo1", "rasgo2":
+			var tr: Dictionary = Content.TRAITS[c_traits[0 if c_focus == "rasgo1" else 1]]
+			return ["Rasgo", tr["name"], tr["desc"]]
+		"modo":
+			if c_madman:
+				return ["Modo", "Demente", "Enemigos con un 50 % más de vida y de daño, y grupos más numerosos."]
+			return ["Modo", "Normal", "La experiencia equilibrada. Haz clic para cambiar a Demente."]
+		"semilla":
+			return ["Semilla", c_seed if c_seed != "" else "Aleatoria", "La misma semilla genera los mismos distritos. Vacía: una partida nueva."]
+	var bonus := []
+	for k in race["stats"]:
+		var v := int(race["stats"][k])
+		if v != 0:
+			bonus.append("%s %+d" % [{"hp": "Vida", "atk": "Ataque", "dex": "Destreza", "mag": "Magia"}.get(k, k), v])
+	return ["Raza", race["name"], "Sin bonificaciones de estadísticas." if bonus.is_empty() else "Bonificación: " + ", ".join(bonus) + "."]
 
 
 func _draw_coop() -> void:
-	_bg()
-	PixelFont.draw_centered(draw_node, 240, 20, "Cooperativo online", COL_GOLD, 2)
-	PixelFont.draw_centered(draw_node, 240, 44, "Hasta 4 jugadores. Usa el personaje de la pantalla de creación.", COL_DIM)
-	_button(Rect2(120, 70, 110, 16), "Crear partida")
-	_button(Rect2(250, 70, 110, 16), "IP: " + coop_ip + ("_" if editing == "ip" and int(t * 3.0) % 2 == 0 else ""), editing == "ip")
-	_button(Rect2(250, 90, 110, 16), "Unirse")
-	PixelFont.draw_centered(draw_node, 240, 118, Net.status_text(), Color("#8aff9a"))
-	var y := 134
+	var c := draw_node
+	var m := _mouse()
+	_heading("Cooperativo online")
+	UiKit.paragraph(c, Rect2(80, 46, 320, 24), "Hasta 4 jugadores. Cada uno juega con el personaje de su pantalla de creación.", UiKit.S, UiKit.TEXT_DIM, 1)
+	# Tarjeta: crear partida.
+	var lc := Rect2(62, 74, 166, 72)
+	UiKit.panel(c, lc, "Crear partida")
+	UiKit.text(c, Vector2(lc.position.x + 10, lc.position.y + 24), "Serás el anfitrión (puerto 7777).", UiKit.S, UiKit.TEXT_DIM, 0, {"max_w": lc.size.x - 20})
+	UiKit.button(c, Rect2(72, 118, 146, 18), "Crear", Rect2(72, 118, 146, 18).has_point(m), {"primary": true})
+	# Tarjeta: unirse.
+	var rc := Rect2(252, 74, 166, 72)
+	UiKit.panel(c, rc, "Unirse")
+	var ipr := Rect2(262, 96, 146, 16)
+	var ed := editing == "ip"
+	UiKit.box(c, ipr, Color(UiKit.BG_DEEP, 0.8), UiKit.LIME if ed else (UiKit.LINE_HI if ipr.has_point(m) else UiKit.LINE), 3)
+	var lr := UiKit.text(c, Vector2(ipr.position.x + 6, ipr.position.y + (16 - UiKit.line_h(UiKit.S)) / 2.0), "IP", UiKit.S, UiKit.TEXT_MUTE, 0, {"kind": "bold"})
+	var r := UiKit.text(c, Vector2(lr.end.x + 6, ipr.position.y + (16 - UiKit.line_h(UiKit.M)) / 2.0), coop_ip, UiKit.M, UiKit.TEXT, 0, {"max_w": ipr.end.x - lr.end.x - 16})
+	if ed and int(t * 2.5) % 2 == 0:
+		c.draw_rect(Rect2(r.end.x + 1, ipr.position.y + 4, 0.8, 8), UiKit.YELLOW)
+	UiKit.button(c, Rect2(262, 118, 146, 18), "Unirse", Rect2(262, 118, 146, 18).has_point(m))
+	# Estado y sala.
+	UiKit.text(c, Vector2(240, 156), Net.status_text(), UiKit.M, UiKit.LIME, 1, {"kind": "bold", "max_w": 400})
+	var y := 172.0
 	for p in Net.lobby_list():
-		PixelFont.draw_centered(draw_node, 240, y, "%s  ·  %s" % [p["name"], Content.race(p["race"])["name"]], COL_TXT)
-		y += 10
+		UiKit.text(c, Vector2(240, y), "%s  ·  %s" % [p["name"], Content.race(p["race"])["name"]], UiKit.S, UiKit.TEXT, 1, {"max_w": 300})
+		y += UiKit.line_h(UiKit.S) + 2
 	if Net.is_host():
-		_button(Rect2(180, 220, 120, 16), "Empezar", false, COL_GOLD)
-	_button(Rect2(20, 240, 70, 14), "Volver")
+		var sr := Rect2(336, 242, 130, 18)
+		UiKit.button(c, sr, "Empezar", sr.has_point(m), {"primary": true})
+	_back_button()
 
 
 func _draw_gallery() -> void:
-	_bg()
-	PixelFont.draw_centered(draw_node, 240, 10, "Desbloqueos", COL_GOLD, 2)
+	var c := draw_node
+	var m := _mouse()
+	_heading("Desbloqueos", 4)
 	var tabs := ["Razas", "Sombreros", "Compañeros", "Estadísticas"]
 	for k in 4:
-		_button(Rect2(60 + k * 92, 26, 88, 14), tabs[k], gallery_tab == k)
-	var mp := draw_node.get_local_mouse_position()
+		UiKit.button(c, _tab_rect(k), tabs[k], _tab_rect(k).has_point(m), {"sel": gallery_tab == k, "size": UiKit.S})
 	if gallery_tab == 3:
-		var y := 60
+		var pr := Rect2(110, 64, 260, 160)
+		UiKit.panel(c, pr)
+		var y := pr.position.y + 12
 		for k in Game.global_stats:
-			PixelFont.draw_centered(draw_node, 240, y, "%s: %s" % [k, Game.global_stats[k]], COL_TXT)
-			y += 12
-		PixelFont.draw_centered(draw_node, 240, y + 8, "Recetas descubiertas: %d de %d" % [Game.known_recipes().size(), Recipes.pairs().size()], COL_GOLD)
-		_button(Rect2(20, 240, 70, 14), "Volver")
+			UiKit.text(c, Vector2(pr.position.x + 14, y), STAT_NAMES.get(k, k), UiKit.M, UiKit.TEXT_DIM, 0, {"max_w": 170})
+			UiKit.text(c, Vector2(pr.end.x - 14, y), str(Game.global_stats[k]), UiKit.M, UiKit.TEXT, 2, {"kind": "bold"})
+			y += UiKit.line_h(UiKit.M) + 5
+		c.draw_rect(Rect2(pr.position.x + 14, y, pr.size.x - 28, 0.6), Color(UiKit.LINE_HI, 0.6))
+		y += 6
+		UiKit.text(c, Vector2(pr.position.x + 14, y), "Recetas descubiertas", UiKit.M, UiKit.YELLOW, 0, {"kind": "bold"})
+		UiKit.text(c, Vector2(pr.end.x - 14, y), "%d / %d" % [Game.known_recipes().size(), Recipes.pairs().size()], UiKit.M, UiKit.YELLOW, 2, {"kind": "bold"})
+		_back_button()
 		return
 	var list: Array = [Content.RACES, Content.HATS, Content.COMPANIONS][gallery_tab]
 	var kind: String = ["race", "hat", "companion"][gallery_tab]
 	var tip := ""
+	var tip_name := ""
 	for i in list.size():
 		var e: Dictionary = list[i]
-		var r := Rect2(24 + (i % 9) * 48, 48 + (i / 9) * 56, 44, 52)
+		var r := Rect2(24 + (i % 9) * 48, 62 + (i / 9) * 54, 44, 50)
 		var own := Game.is_owned(kind, e["id"])
-		draw_node.draw_rect(r, Color("#221c2e") if own else Color("#140f1a"))
-		draw_node.draw_rect(r, Color("#6a5a8a") if own else Color("#3a3048"), false, 1.0)
-		var col := Color.WHITE if own else Color(0, 0, 0, 0.9)
+		var hov := r.has_point(m)
+		UiKit.box(c, r, (UiKit.PANEL_SEL if hov else UiKit.PANEL) if own else Color(UiKit.BG_DEEP, 0.9),
+			(UiKit.YELLOW if hov else UiKit.LINE) if own else Color(UiKit.LINE, 0.4), 4)
+		var col := Color.WHITE if own else Color(0, 0, 0, 0.85)
 		match kind:
 			"race":
 				var gf := Art.hero_frame(e["id"], "idle", int(t * 6.0))
-				draw_node.draw_texture(gf["tex"], (r.position + Vector2(22, 38) - Vector2(gf["origin"])).round(), col)
+				c.draw_texture(gf["tex"], (r.position + Vector2(22, 31) - Vector2(gf["origin"])).round(), col)
 			"hat":
 				var ht = Art.hat(e["id"])
 				if ht:
-					draw_node.draw_texture_rect(ht, Rect2(r.position + Vector2(8, 8), Vector2(28, 24)), false, col)
+					c.draw_texture_rect(ht, Rect2(r.position + Vector2(8, 5), Vector2(28, 24)), false, col)
 			"companion":
 				var cp = Art.companion(e["id"], int(t * 6.0))
 				if cp:
-					draw_node.draw_texture_rect(cp, Rect2(r.position + Vector2(10, 8), Vector2(24, 24)), false, col)
-		PixelFont.draw_centered(draw_node, r.get_center().x, r.end.y - 10, e["name"].substr(0, 10), COL_TXT if own else COL_DIM)
-		if r.has_point(mp):
+					c.draw_texture_rect(cp, Rect2(r.position + Vector2(10, 5), Vector2(24, 24)), false, col)
+		if not own:
+			_lock_icon(r.get_center() + Vector2(0, -8))
+		# Nombre en hasta dos líneas dentro de la ficha (el completo sale abajo al pasar el ratón).
+		UiKit.paragraph(c, Rect2(r.position.x + 2, r.end.y - 17, r.size.x - 4, 16), e["name"], UiKit.XS,
+			UiKit.TEXT if own else UiKit.TEXT_MUTE, 1, {"leading": 0.3})
+		if hov:
+			tip_name = e["name"]
 			tip = e.get("desc", "")
 			if not own:
-				tip = "Bloqueado: " + e["unlock"].get("text", "?")
-	if tip != "":
-		PixelFont.draw_centered(draw_node, 240, 222, PixelFont.wrap(tip, 80), Color("#fff08a"))
-	_button(Rect2(20, 240, 70, 14), "Volver")
+				tip = "Bloqueado · " + e["unlock"].get("text", "?")
+	if tip_name != "":
+		var tr := Rect2(100, 226, 370, 12)
+		var nr := UiKit.text(c, Vector2(tr.position.x, tr.position.y), tip_name, UiKit.S, UiKit.YELLOW, 0, {"kind": "bold", "max_w": 130})
+		UiKit.text(c, Vector2(nr.end.x + 8, tr.position.y), tip, UiKit.S, UiKit.TEXT_DIM, 0, {"max_w": tr.end.x - nr.end.x - 8})
+	_back_button()
 
 
-func _draw_options() -> void:
-	_bg()
-	PixelFont.draw_centered(draw_node, 240, 36, "Opciones", COL_GOLD, 2)
-	var items := ["Efectos  %d%%" % int(Game.settings["sfx"] * 100), "Música  %d%%" % int(Game.settings["music"] * 100),
-		"Pantalla completa: %s" % ("sí" if Game.settings["fullscreen"] else "no"),
-		"Temblor de pantalla: %s" % ("sí" if Game.settings["shake"] else "no"), "Controles"]
-	for k in items.size():
-		_button(Rect2(130, 70 + k * 18, 220, 16), items[k])
-	PixelFont.draw_centered(draw_node, 240, 170, "Clic izquierdo sube, derecho baja", COL_DIM)
-	_button(Rect2(20, 240, 70, 14), "Volver")
-
-
-func _draw_controls() -> void:
-	_bg()
-	PixelFont.draw_centered(draw_node, 240, 16, "Controles", COL_GOLD, 2)
-	var keys := Game.LABELS.keys()
-	for k in keys.size():
-		var r := Rect2(120, 36 + k * 13, 240, 12)
-		var a: String = keys[k]
-		draw_node.draw_rect(r, Color("#3a2e50") if r.has_point(draw_node.get_local_mouse_position()) else Color("#1e1828"))
-		PixelFont.draw(draw_node, r.position + Vector2(4, 4), Game.LABELS[a], COL_TXT)
-		var kl := "..." if rebinding == a else Game.key_label(a)
-		PixelFont.draw(draw_node, r.position + Vector2(r.size.x - PixelFont.width(kl) - 4, 4), kl, COL_GOLD)
-	PixelFont.draw_centered(draw_node, 240, 226, "Ratón: apuntar y usar  ·  1-8 / rueda: barra rápida", COL_DIM)
-	_button(Rect2(20, 240, 70, 14), "Volver")
+func _lock_icon(p: Vector2) -> void:
+	var c := draw_node
+	c.draw_arc(p + Vector2(0, -2), 3.2, PI, TAU, 12, UiKit.TEXT_MUTE, 1.3, true)
+	UiKit.box(c, Rect2(p + Vector2(-4.5, -1.5), Vector2(9, 7)), UiKit.TEXT_MUTE, Color(0, 0, 0, 0), 1)
+	c.draw_circle(p + Vector2(0, 1.8), 1.0, UiKit.BG_DEEP, true, -1.0, true)
 
 
 func _draw_final() -> void:
-	_bg()
+	var c := draw_node
 	var won: bool = result.get("won", false)
-	PixelFont.draw_centered(draw_node, 240, 24, "¡La Ceniza ha caído!" if won else "Fin de la partida", COL_GOLD if won else Color("#ff7a7a"), 3)
+	UiKit.text(c, Vector2(240, 14), "¡La Ceniza ha caído!" if won else "Fin de la partida", 22,
+		UiKit.YELLOW if won else Color("#ff8a7a"), 1, {"kind": "display", "shadow": true, "max_w": 440})
+	UiKit.ornament(c, Vector2(240, 44), 90, Color(UiKit.GOLD, 0.8))
+	var y := 52.0
 	if won:
-		PixelFont.draw_centered(draw_node, 240, 54, PixelFont.wrap("El Muro de Ceniza se desmorona. Por primera vez en generaciones, una brisa de la Superficie baja hasta Hondura.", 70), COL_TXT)
+		y += UiKit.paragraph(c, Rect2(70, y, 340, 30), "El Muro de Ceniza se desmorona. Por primera vez en generaciones, una brisa de la Superficie baja hasta Hondura.", UiKit.S, UiKit.TEXT, 1) + 6
+	# Fichas de resumen.
 	var secs := int(result.get("time", 0.0))
-	PixelFont.draw_centered(draw_node, 240, 80, "Distrito %d  ·  tiempo %d:%02d  ·  semilla %d%s" % [result.get("district", 1), secs / 60, secs % 60, result.get("seed", 0), "  ·  demente" if result.get("madman", false) else ""], COL_DIM)
-	var y := 96
-	for h in result.get("heroes", []):
-		var line := "%s (%s) nivel %d, %d enemigos" % [h["name"], Content.race(h["race"])["name"], h["level"], h["kills"]]
+	var chips := ["Distrito %d" % result.get("district", 1), "Tiempo %d:%02d" % [secs / 60, secs % 60], "Semilla %d" % result.get("seed", 0)]
+	if result.get("madman", false):
+		chips.append("Demente")
+	var widths := chips.map(func(s): return UiKit.text_w(s, UiKit.S, "bold") + 14.0)
+	var total: float = widths.reduce(func(a, b): return a + b, 0.0) + 6.0 * (chips.size() - 1)
+	var x := 240.0 - total / 2.0
+	for i in chips.size():
+		var r := Rect2(x, y, widths[i], 13)
+		UiKit.box(c, r, Color(UiKit.PANEL_HI, 0.9), UiKit.LINE, 6)
+		UiKit.text(c, Vector2(r.get_center().x, r.position.y + (13 - UiKit.line_h(UiKit.S, "bold")) / 2.0), chips[i], UiKit.S, UiKit.TEXT, 1, {"kind": "bold"})
+		x += widths[i] + 6.0
+	y += 22
+	# Héroes.
+	var heroes: Array = result.get("heroes", [])
+	var unl: Array = result.get("unlocks", [])
+	var ph := 14.0 + heroes.size() * 12.0
+	var pr := Rect2(80, y, 320, ph)
+	UiKit.panel(c, pr)
+	var hy := pr.position.y + 7
+	for h in heroes:
+		var line := "%s · %s · nivel %d · %d enemigos" % [h["name"], Content.race(h["race"])["name"], h["level"], h["kills"]]
 		if not won and h.get("cause", "") != "":
 			var cn: String = Content.enemy(h["cause"]).get("name", h["cause"])
-			line += "  ·  cayó ante: " + cn
-		PixelFont.draw_centered(draw_node, 240, y, line, COL_TXT)
-		y += 10
-	var unl: Array = result.get("unlocks", [])
+			line += " · cayó ante " + cn
+		UiKit.text(c, Vector2(240, hy), line, UiKit.S, UiKit.TEXT, 1, {"max_w": pr.size.x - 16, "min_size": UiKit.XS})
+		hy += 12
+	y = pr.end.y + 10
 	if not unl.is_empty():
-		PixelFont.draw_centered(draw_node, 240, y + 10, "¡Desbloqueado!", Color("#8aff9a"), 2)
-		y += 26
-		for u in unl:
+		UiKit.text(c, Vector2(240, y), "¡Desbloqueado!", UiKit.L, UiKit.LIME, 1, {"kind": "bold", "shadow": true})
+		y += UiKit.line_h(UiKit.L) + 3
+		var max_rows := int((236.0 - y) / 11.0)
+		for i in mini(unl.size(), max_rows):
+			var u: Dictionary = unl[i]
 			var kn = {"race": "Raza", "hat": "Sombrero", "companion": "Compañero"}[u["kind"]]
-			PixelFont.draw_centered(draw_node, 240, y, "%s: %s" % [kn, u["name"]], Color("#c8ffd0"))
-			y += 10
-	_button(Rect2(180, 228, 120, 16), "Menú principal")
+			var s := "%s: %s" % [kn, u["name"]]
+			if i == max_rows - 1 and unl.size() > max_rows:
+				s = "y %d más…" % (unl.size() - i)
+			UiKit.text(c, Vector2(240, y), s, UiKit.S, Color("#d4f5b0"), 1, {"max_w": 320})
+			y += 11
+	UiKit.button(c, Rect2(170, 242, 140, 18), "Menú principal", Rect2(170, 242, 140, 18).has_point(_mouse()), {"primary": true})
 
 
 func _anim_test() -> void:
@@ -553,9 +809,10 @@ func _anim_test() -> void:
 		run.remote_inputs[h.peer_id] = inp
 		await get_tree().create_timer(0.07).timeout
 		await RenderingServer.frame_post_draw
-		var img := get_viewport().get_texture().get_image()
-		var sp: Vector2 = (h.position - run.world.camera.get_screen_center_position() + Vector2(160, 90)) * 3.0
-		var r := Rect2i(int(sp.x) - 120, int(sp.y) - 120, 240, 150).intersection(Rect2i(0, 0, 960, 540))
+		# Se recorta del propio mundo (SubViewport de Run.WORLD_RES), no de la ventana.
+		var img: Image = run.world_vp.get_texture().get_image()
+		var sp: Vector2 = h.position - run.world.camera.get_screen_center_position() + Vector2(Run.WORLD_RES) / 2.0
+		var r := Rect2i(int(sp.x) - 40, int(sp.y) - 40, 80, 50).intersection(Rect2i(Vector2i.ZERO, Run.WORLD_RES))
 		img.get_region(r).save_png(ProjectSettings.globalize_path("res://shots/anim_%02d.png" % i))
 	get_tree().quit()
 
@@ -592,7 +849,7 @@ func _net_test(as_host: bool) -> void:
 
 func _shots() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots"))
-	await _shot("00_titulo", 0.5)
+	await _shot("00_titulo", 0.8)
 	screen = "crear"
 	await _shot("01_crear", 0.3)
 	_start_single(4242)
@@ -639,3 +896,106 @@ func _shot(name: String, secs: float) -> void:
 	await get_tree().create_timer(secs).timeout
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://shots/%s.png" % name))
+
+
+# --- Auditoría de la interfaz (desarrollo) --------------------------------------------------------
+# Recorre todas las pantallas y paneles, guarda una captura de cada una en shots/ui_*.png e
+# imprime cualquier texto que se solape con otro o se salga de la pantalla.
+
+var _audit_total := 0
+
+
+func _audit(name: String) -> void:
+	UiKit.audit = true
+	await RenderingServer.frame_post_draw
+	UiKit.audit_begin()
+	await RenderingServer.frame_post_draw
+	var issues := UiKit.audit_issues()
+	UiKit.audit = false
+	get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://shots/ui_%s.png" % name))
+	_audit_total += issues.size()
+	print("UI %-22s %s" % [name, "ok" if issues.is_empty() else "%d problemas" % issues.size()])
+	for s in issues:
+		print("     ", s)
+
+
+func _ui_audit() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots"))
+	await get_tree().create_timer(0.5).timeout
+	for s in ["titulo", "crear", "coop", "opciones", "controles"]:
+		screen = s
+		await _audit(s)
+	for k in ["nombre", "raza", "sombrero", "companero", "rasgo1", "modo", "semilla"]:
+		screen = "crear"
+		c_focus = k
+		c_madman = k == "modo"
+		await _audit("crear_" + k)
+	c_madman = false
+	# Nombres más largos posibles en la creación.
+	c_name = "WWWWWWWWWWWW"
+	c_hat = 0
+	for i in Content.HATS.size():
+		if Content.HATS[i]["name"].length() > Content.HATS[c_hat]["name"].length():
+			c_hat = i
+	screen = "crear"
+	c_focus = "sombrero"
+	await _audit("crear_largo")
+	c_name = "Hero"
+	c_hat = 0
+	for k in 4:
+		screen = "galeria"
+		gallery_tab = k
+		await _audit("galeria_%d" % k)
+	result = {"won": true, "district": 21, "time": 3725.0, "seed": 123456, "madman": true,
+		"heroes": [{"name": "WWWWWWWWWWWW", "race": "minero", "level": 20, "kills": 999, "cause": ""},
+			{"name": "Cliente", "race": "minero", "level": 7, "kills": 12, "cause": ""}],
+		"unlocks": [{"kind": "race", "name": "Caballero fantasma"}, {"kind": "hat", "name": "Capucha del rey esqueleto"}, {"kind": "companion", "name": "Dron de la cuarta era"}]}
+	screen = "final"
+	await _audit("final_victoria")
+	result["won"] = false
+	result["heroes"][0]["cause"] = "muro_ceniza"
+	await _audit("final_derrota")
+	# Partida.
+	_start_single(4242)
+	await get_tree().create_timer(1.2).timeout
+	var h: Hero = game_ui.local_hero()
+	run.world.god_mode = true
+	h.model.coins = 99999
+	h.model.hp = 7
+	h.model.inv.add(Inventory.make("madera", 99))
+	h.model.inv.add(Inventory.make("espada_hierro", 1))
+	h.model.inv.add(Inventory.make("baston_fuego", 1))
+	for i in 6:
+		game_ui.notify("+%d objeto de prueba con nombre largo" % i, UiKit.LIME)
+	game_ui.say("Mensaje de prueba bastante largo para comprobar que el aviso cabe en su sitio")
+	await _audit("hud")
+	game_ui.toggle_inventory()
+	await get_tree().create_timer(0.2).timeout
+	await _audit("inventario")
+	game_ui.close()
+	for p in ["pausa", "opciones", "controles", "mapa"]:
+		game_ui.panel = p
+		await _audit("juego_" + p)
+	game_ui.panel = ""
+	game_ui.open_skill_pick(h)
+	await _audit("habilidad")
+	game_ui.panel = ""
+	run.world.paused = false
+	run.enter_town("tundra")
+	await get_tree().create_timer(1.0).timeout
+	h = game_ui.local_hero()
+	h.model.inv.add(Inventory.make("lingote_hierro", 9) if ItemDB.has("lingote_hierro") else Inventory.make("madera", 5))
+	for n in run.world.npcs:
+		if n.kind in ["tendero", "herrero", "comprador", "altar"]:
+			game_ui.open_npc(n, h)
+			await _audit("npc_" + n.kind + ("_" + n.shop if n.shop != "" else ""))
+			game_ui.close()
+	for n in run.world.npcs:
+		if n.kind == "vecino":
+			n.talk()
+			h.position = n.position + Vector2(20, 0)
+			break
+	await get_tree().create_timer(0.4).timeout
+	await _audit("pueblo_rotulos")
+	print("UI TOTAL problemas: ", _audit_total)
+	get_tree().quit()

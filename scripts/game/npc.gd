@@ -103,7 +103,6 @@ func _draw() -> void:
 		"puerta":
 			var col: String = Content.biome(biome)["door"]
 			draw_texture(Art.door(col, int(t * 6.0)), Vector2(-18, -50))
-			PixelFont.draw_centered(self, 0, -60, label(), Color(col).lightened(0.3))
 		"altar":
 			var idx := 0
 			for i in Content.ALTARS.size():
@@ -116,10 +115,8 @@ func _draw() -> void:
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2(-1 if walk_dir < 0.0 else 1, 1))
 			draw_texture(fr["tex"], Vector2(-7, -18))
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-			if talk_t > 0.0:
-				PixelFont.draw_centered(self, 0, -40, PixelFont.wrap(LINES[line_i], 34), Color("#f4f0e0"))
 		_:
 			draw_texture(Art.stall(kind), Vector2(-28, -44))
 			var fr2: Dictionary = Art.npc_frame(kind, "idle", int(t * 3.0))
 			draw_texture(fr2["tex"], Vector2(-7, -22))
-			PixelFont.draw_centered(self, 0, -54, label(), Color("#f4e0b0"))
+			# Rótulos y diálogos: los dibuja GameUI en alta resolución.

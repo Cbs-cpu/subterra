@@ -91,7 +91,4 @@ func _draw() -> void:
 		var c2: Color = p["col"]
 		c2.a *= clampf(p["life"] / p["max"] * 2.0, 0.0, 1.0)
 		draw_rect(Rect2(p["p"].round(), Vector2(p["s"], p["s"])), c2)
-	for tx in texts:
-		var c3: Color = tx["col"]
-		c3.a = clampf(tx["life"] * 3.0, 0.0, 1.0)
-		PixelFont.draw_centered(self, tx["p"].x, tx["p"].y, tx["s"], c3)
+	# Los textos flotantes (`texts`) los dibuja GameUI en alta resolución, sin solaparse.

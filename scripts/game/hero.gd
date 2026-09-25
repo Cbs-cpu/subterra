@@ -493,7 +493,6 @@ func _draw() -> void:
 		var og0: Vector2 = Vector2(fr["origin"])
 		draw_texture(tex, -og0 + Vector2(0, 9), Color(1, 1, 1, 0.8))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-		PixelFont.draw_centered(self, 0, -26, "¡ayuda!" if int(anim_t * 2.0) % 2 == 0 else "", Color("#ffd24a"))
 		return
 	var sc := Vector2(squash.x * facing, squash.y)
 	# Saltitos al correr y respiración en reposo.
@@ -554,5 +553,4 @@ func _draw() -> void:
 	if cp:
 		var off := Vector2(-facing * 12.0, -24.0 + sin(companion_t * 3.0) * 3.0)
 		draw_texture(cp, off - Vector2(6, 6))
-	if world.players.size() > 1:
-		PixelFont.draw_centered(self, 0, -34, model.name, Color("#c8f0ff") if is_local else Color("#ffe0a0"))
+	# El nombre (cooperativo) y el "¡Ayuda!" los dibuja GameUI en alta resolución.
