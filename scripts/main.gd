@@ -47,6 +47,10 @@ func _ready() -> void:
 		_start_single(12345)
 	if "--shots" in args:
 		_shots.call_deferred()
+	if "--host-test" in args:
+		_net_test(true)
+	if "--join-test" in args:
+		_net_test(false)
 
 
 func _process(dt: float) -> void:
@@ -499,6 +503,34 @@ func _draw_final() -> void:
 			PixelFont.draw_centered(draw_node, 240, y, "%s: %s" % [kn, u["name"]], Color("#c8ffd0"))
 			y += 10
 	_button(Rect2(180, 228, 120, 16), "Menú principal")
+
+
+# --- Prueba de red (desarrollo) ----------------------------------------------------------------
+
+func _net_test(as_host: bool) -> void:
+	c_name = "Anfitrion" if as_host else "Cliente"
+	if as_host:
+		Net.host(7788, _hero_config(1))
+		while Net.lobby.size() < 2:
+			await get_tree().create_timer(0.2).timeout
+		Net.start(777, false)
+	else:
+		Net.join("127.0.0.1", 7788, _hero_config(0))
+	while run == null:
+		await get_tree().create_timer(0.2).timeout
+	await get_tree().create_timer(4.0).timeout
+	var w: World = run.world
+	print("NETTEST ", "host" if as_host else "client", " jugadores=", w.players.size(), " enemigos=", w.enemies.size(),
+		" pos=", w.players.map(func(p): return p.position.round()), " biome=", w.biome)
+	if as_host:
+		run.choose_door(w.npcs.filter(func(n): return n.kind == "puerta")[0].biome)
+		await get_tree().create_timer(2.0).timeout
+		print("NETTEST host estado=", run.state)
+	else:
+		await get_tree().create_timer(2.0).timeout
+		print("NETTEST client estado=", run.state, " pueblo=", run.world.is_town)
+	await get_tree().create_timer(1.0).timeout
+	get_tree().quit()
 
 
 # --- Capturas automáticas (desarrollo) ----------------------------------------------------------

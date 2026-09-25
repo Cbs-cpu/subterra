@@ -501,6 +501,9 @@ func _draw() -> void:
 		draw_texture(hat, Vector2(hd.x - 7 - 7 + 1, -18 + hd.y - 10), col)
 	# Objeto en la mano: se calcula mirando a la derecha y luego se voltea.
 	var h = model.inv.held()
+	if not is_local and has_meta("held"):
+		var mh: String = get_meta("held")
+		h = null if mh == "" else {"id": mh, "n": 1}
 	if h != null and ItemDB.get_item(h["id"]).get("slot", "") == "":
 		var hand: Vector2i = fr["hand"]
 		var hp := Vector2(hand.x - 7, hand.y - 18)

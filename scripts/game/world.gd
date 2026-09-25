@@ -203,6 +203,12 @@ func _physics_process(dt: float) -> void:
 	bg_mat.set_shader_parameter("time", time_in)
 	if paused:
 		return
+	if Net.is_client():
+		Net.apply_snapshot(self, dt)
+		fx.tick(dt)
+		_update_camera(dt)
+		Net.after_tick(self)
+		return
 	if hitstop_t > 0.0:
 		hitstop_t -= dt
 		return

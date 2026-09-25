@@ -72,12 +72,18 @@ func enter_district(b: String) -> void:
 	for pid in counters:
 		counters[pid]["visit_" + b] = 1
 		counters[pid]["district"] = max(int(counters[pid].get("district", 0)), district)
-	var doors := [] if b == "nido" else Content.door_choices(district + 1, rng)
+	var drng := RandomNumberGenerator.new()
+	drng.seed = seed_value * 1009 + district
+	var doors := [] if b == "nido" else Content.door_choices(district + 1, drng)
 	var map := DistrictGen.generate(seed_value * 97 + district * 13, b, district, doors, madman)
 	world = World.new()
 	add_child(world)
 	world.setup(self, map, seed_value + district * 7)
 	_spawn_heroes(map["spawn"])
+	if Net.is_client():
+		ui.show_title_card(Content.biome(b)["name"], "Distrito %d" % district if b != "nido" else "El final")
+		Net.run_ref = self
+		return
 	for pid in models:
 		var m: HeroModel = models[pid]
 		m.reset_cooldowns()
@@ -100,6 +106,10 @@ func enter_town(b: String) -> void:
 	add_child(world)
 	world.setup(self, map, seed_value + district * 11)
 	_spawn_heroes(map["spawn"])
+	if Net.is_client():
+		ui.show_title_card("Pueblo", "Rumbo a: " + Content.biome(b)["name"])
+		Net.run_ref = self
+		return
 	for pid in models:
 		var m: HeroModel = models[pid]
 		if m.fx().has("regen_district"):
