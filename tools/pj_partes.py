@@ -12,29 +12,31 @@ from PIL import Image, ImageDraw
 
 OUT = "art_src/pj_partes"
 PAL = {
-    "O": (38, 24, 20),      # contorno
-    "H": (106, 58, 28),     # pelo
-    "h": (146, 86, 42),     # pelo con luz
-    "S": (240, 176, 128),   # piel
-    "s": (200, 132, 90),    # piel en sombra
-    "L": (255, 208, 160),   # piel con luz
-    "E": (26, 16, 22),      # ojo
-    "M": (190, 90, 80),     # mejilla
+    "O": (14, 10, 10),      # contorno negro
+    "H": (107, 69, 38),     # pelo
+    "h": (143, 98, 54),     # pelo con luz
+    "G": (46, 154, 46),     # banda verde
+    "g": (88, 184, 72),     # banda con luz
+    "d": (28, 90, 28),      # banda en sombra
+    "E": (10, 8, 8),        # ojo
+    "S": (242, 201, 160),   # piel
+    "s": (217, 168, 130),   # piel en sombra
 }
 
 PARTES = {
-    # Cabeza grande y redonda mirando a la derecha: pelo arriba y en la nuca, flequillo,
-    # ojo de 1x2 y mejilla.
+    # Cabeza cuadrada y frontal, estilo bloque: contorno negro, pelo arriba, banda verde
+    # con los ojos y la cara con la mitad izquierda en sombra.
     "cabeza": [
-        "..OOOOOO...",
-        ".OHhhhHHO..",
-        "OHHHHHHHHO.",
-        "OHHHLSSSSSO",
-        "OHHSSSSESSO",
-        "OHsSSSSESSO",
-        "OHsSSSSSMSO",
-        ".OssSSSSSO.",
-        "..OOOOOOO..",
+        "OOOOOOOOOO",
+        "OHHHHHHhhO",
+        "OHHHHHHHhO",
+        "OHHHHHHHHO",
+        "OHGGGGGggO",
+        "OGdEGGdEgO",
+        "OsssSSSSSO",
+        "OsssSSSSSO",
+        "OsssSSSSSO",
+        "OOOOOOOOOO",
     ],
 }
 
