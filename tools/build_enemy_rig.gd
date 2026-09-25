@@ -40,6 +40,8 @@ func _build(id: String, def: Dictionary) -> void:
 		s.owner = rig
 		nodes[p["name"]] = s
 		rest[p["name"]] = {"p": p["p"], "r": 0.0, "f": 0, "snap": p.get("snap", false), "path": String(rig.get_path_to(s))}
+	# El cuerpo entero (Root) también se puede animar: posición y giro.
+	rest["Root"] = {"p": Vector2.ZERO, "r": 0.0, "f": -1, "snap": false, "path": "Root"}
 	var ap := AnimationPlayer.new()
 	ap.name = "AnimationPlayer"
 	rig.add_child(ap)
@@ -64,7 +66,7 @@ func _anim(d: Array, rest: Dictionary) -> Animation:
 	a.loop_mode = Animation.LOOP_LINEAR if d[1] else Animation.LOOP_NONE
 	for part in rest:
 		var r: Dictionary = rest[part]
-		for prop in ["p", "r", "f"]:
+		for prop in (["p", "r"] if part == "Root" else ["p", "r", "f"]):
 			var ti := a.add_track(Animation.TYPE_VALUE)
 			a.track_set_path(ti, r["path"] + ":" + {"p": "position", "r": "rotation", "f": "frame"}[prop])
 			var discrete: bool = prop == "f" or (prop == "p" and r["snap"])

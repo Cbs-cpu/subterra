@@ -130,9 +130,102 @@ def limo(pal=LIMO):
     return {"cuerpo": cuerpo, "ojos": limo_ojos()}
 
 
+# --- Utilidades de dibujo ---------------------------------------------------------------
+
+def blank(w, h):
+    return Image.new("RGBA", (w, h), (0, 0, 0, 0))
+
+
+def put(im, x, y, c):
+    if 0 <= x < im.width and 0 <= y < im.height:
+        im.putpixel((x, y), c)
+
+
+def ellipse(im, cx, cy, rx, ry, c):
+    for y in range(im.height):
+        for x in range(im.width):
+            dx = (x + 0.5 - cx) / rx
+            dy = (y + 0.5 - cy) / ry
+            if dx * dx + dy * dy <= 1.0:
+                im.putpixel((x, y), c)
+
+
+def rect(im, x, y, w, h, c):
+    for yy in range(y, y + h):
+        for xx in range(x, x + w):
+            put(im, xx, yy, c)
+
+
+def mirror(im):
+    return im.transpose(Image.FLIP_LEFT_RIGHT)
+
+
+def tint(im, f):
+    out = im.copy()
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            if a and (r, g, b, a) != INK:
+                px[x, y] = (int(r * f), int(g * f), int(b * f), a)
+    return out
+
+
+# --- Araña ------------------------------------------------------------------------------
+
+ARANA = {"verde": ["#1a4a1a", "#3a8a2a", "#6ac04a", "#b8f08a"],
+         "morada": ["#2e1a4a", "#5a2a8a", "#8a4ac0", "#d0a0f0"],
+         "madre": ["#2a0e2a", "#5a1a4a", "#9a2a6a", "#e05aa0"]}
+
+
+def arana(pal="verde"):
+    r = [hexc(c) for c in ARANA[pal]]
+    ojo = hexc("#ff3a3a")
+    # Abdomen redondo con manchas y brillo.
+    ab = blank(14, 11)
+    ellipse(ab, 7, 5.5, 6, 4.5, r[1])
+    ellipse(ab, 6, 4.5, 4.5, 3, r[2])
+    for x, y in ((5, 4), (8, 5), (6, 7), (9, 3)):
+        put(ab, x, y, r[3] if (x + y) % 2 else r[1])
+    put(ab, 4, 2, r[3])
+    put(ab, 5, 2, r[3])
+    rect(ab, 2, 8, 10, 1, r[0])
+    ink(ab)
+    # Cabeza con ojos rojos grandes y colmillos. Fotogramas: 0 normal, 1 aturdida.
+    frames = []
+    for kind in ("normal", "aturdida"):
+        c = blank(11, 10)
+        ellipse(c, 5.5, 4.5, 4.5, 3.8, r[1])
+        ellipse(c, 5, 3.5, 3, 2, r[2])
+        if kind == "normal":
+            rect(c, 5, 3, 2, 2, ojo)
+            rect(c, 2, 3, 2, 2, ojo)
+            put(c, 6, 3, (255, 210, 200, 255))
+            put(c, 3, 3, (255, 210, 200, 255))
+        else:
+            for x, y in ((5, 3), (6, 4), (5, 5), (7, 3), (7, 5), (2, 3), (3, 4), (2, 5)):
+                put(c, x, y, INK)
+        put(c, 6, 8, hexc("#f4efdc"))
+        put(c, 8, 7, hexc("#f4efdc"))
+        frames.append(ink(c))
+    cabeza = strip(frames)
+    # Pata gruesa (2 px): sale del cuerpo, sube a la rodilla y baja al suelo.
+    pata = blank(10, 9)
+    leg = tuple((a + b) // 2 for a, b in zip(r[0], r[1]))
+    for x, y in ((3, 1), (4, 1), (2, 2), (3, 2), (4, 2), (5, 2), (1, 3), (2, 3), (5, 3), (6, 3),
+                 (1, 4), (6, 4), (7, 4), (6, 5), (7, 5), (7, 6), (8, 6), (8, 7)):
+        put(pata, x, y, leg)
+    for x, y in ((3, 1), (4, 1)):
+        put(pata, x, y, r[1])
+    ink(pata)
+    return {"abdomen": ab, "cabeza": cabeza, "pata": pata, "pata_atras": tint(mirror(pata), 0.7),
+            "pata_fondo": tint(pata, 0.7), "pata_trasera": mirror(pata)}
+
+
 # Carpeta -> función. Las variantes de color (<enemigo>_<paleta>) usan la escena del
 # enemigo base y solo cambian las texturas.
-ENEMIGOS = {"limo": limo, "limo_azul": lambda: limo(LIMO_AZUL)}
+ENEMIGOS = {"limo": limo, "limo_azul": lambda: limo(LIMO_AZUL),
+            "arana": arana, "arana_morada": lambda: arana("morada"), "arana_madre": lambda: arana("madre")}
 
 
 def preview(name, parts, z=10):

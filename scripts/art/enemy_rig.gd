@@ -6,6 +6,9 @@ extends RefCounted
 ## Las variantes de color usan las piezas de assets/sprites/enemigos/<spr>_<pal>/ si existen.
 
 const SCENES := "res://scenes/enemigos/"
+## Enemigos ya revisados que el juego dibuja por piezas. Los demás siguen con su sprite de
+## siempre aunque su escena exista (se enseñan antes en un vídeo de revisión).
+const ENABLED := ["limo"]
 const SPRITES := "res://assets/sprites/enemigos/"
 
 static var _defs := {}
@@ -13,7 +16,7 @@ static var _tex := {}
 
 
 static func has(spr: String) -> bool:
-	return _def(spr) != null
+	return spr in ENABLED and _def(spr) != null
 
 
 ## {parts: [{name, path, parent, tex, hframes, offset, rest: {position, rotation, frame}}], anims}
@@ -63,7 +66,7 @@ static func length(spr: String, anim: String) -> float:
 ## Piezas en orden de dibujo: [{tex, hframes, frame, offset, tr}].
 static func pose(spr: String, anim: String, time: float) -> Array:
 	var d = _def(spr)
-	var vals := {}
+	var vals := {"Root": d["root"].duplicate()}
 	for p in d["parts"]:
 		vals[p["path"]] = p["rest"].duplicate()
 	var a: Animation = d["anims"].get(anim, null)
@@ -74,12 +77,13 @@ static func pose(spr: String, anim: String, time: float) -> Array:
 			var prop := tp.get_slice(":", 1)
 			if vals.has(node) and vals[node].has(prop):
 				vals[node][prop] = a.value_track_interpolate(ti, clampf(time, 0.0, a.length))
-	var trs := {}
+	var rv: Dictionary = vals["Root"]
+	var trs := {"": Transform2D(rv["rotation"], Vector2.ONE, 0.0, (rv["position"] as Vector2).round())}
 	var out := []
 	for p in d["parts"]:
 		var v: Dictionary = vals[p["path"]]
 		var local := Transform2D(v["rotation"], Vector2.ONE, 0.0, (v["position"] as Vector2).round())
-		var tr: Transform2D = trs[p["parent"]] * local if p["parent"] != "" else local
+		var tr: Transform2D = trs[p["parent"]] * local
 		trs[p["path"]] = tr
 		out.append({"tex": p["tex"], "hframes": p["hframes"], "frame": int(v["frame"]), "offset": p["offset"], "tr": tr})
 	return out

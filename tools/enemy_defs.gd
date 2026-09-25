@@ -70,4 +70,50 @@ const DEFS := {
 			]],
 		},
 	},
+	"arana": {
+		"parts": [
+			# Todas las patas van detrás del cuerpo (las del fondo más oscuras). Las que miran
+			# hacia atrás son la misma pieza en espejo, con el pivote a la derecha.
+			{"name": "PataB2", "tex": "pata_atras", "offset": Vector2(-8, -4), "p": Vector2(-7, -5)},
+			{"name": "PataB1", "tex": "pata_fondo", "offset": Vector2(-1, -4), "p": Vector2(0, -5)},
+			{"name": "PataF1", "tex": "pata_trasera", "offset": Vector2(-8, -4), "p": Vector2(-4, -5)},
+			{"name": "PataF2", "tex": "pata", "offset": Vector2(-1, -4), "p": Vector2(3, -5)},
+			{"name": "Abdomen", "tex": "abdomen", "offset": Vector2(-7, -10), "p": Vector2(-4, -3)},
+			{"name": "Cabeza", "tex": "cabeza", "hframes": 2, "offset": Vector2(-2, -8), "p": Vector2(1, -4)},
+		],
+		"anims": {
+			# Respira con el abdomen y mueve un poco la cabeza.
+			"idle": [2.4, true, [
+				[0.0, {}],
+				[1.0, {"Abdomen": {"p": Vector2(-4, -4)}}],
+				[1.6, {"Abdomen": {"p": Vector2(-4, -4)}, "Cabeza": {"r": 0.06}}],
+				[2.4, {}],
+			]],
+			# Paso: se levantan las patas por parejas cruzadas y el cuerpo sube un píxel.
+			"move": [0.48, true, [
+				[0.0, {"PataB2": {"p": Vector2(-6, -6), "r": 0.25}, "PataF2": {"p": Vector2(4, -6), "r": -0.25}}],
+				[0.12, {"Abdomen": {"p": Vector2(-4, -4)}, "Cabeza": {"p": Vector2(1, -5)}}],
+				[0.24, {"PataB1": {"p": Vector2(1, -6), "r": -0.25}, "PataF1": {"p": Vector2(-3, -6), "r": 0.25}}],
+				[0.36, {"Abdomen": {"p": Vector2(-4, -4)}, "Cabeza": {"p": Vector2(1, -5)}}],
+				[0.48, {"PataB2": {"p": Vector2(-6, -6), "r": 0.25}, "PataF2": {"p": Vector2(4, -6), "r": -0.25}}],
+			]],
+			# Se levanta con las patas de delante en alto, espera un momento y se lanza.
+			"attack": [0.7, false, [
+				[0.0, {"Cabeza": {"p": Vector2(1, -6), "r": -0.25}, "Abdomen": {"p": Vector2(-5, -3)},
+					"PataF2": {"p": Vector2(3, -7), "r": -0.7}, "PataB1": {"p": Vector2(0, -7), "r": -0.5}}],
+				[0.3, {"Cabeza": {"p": Vector2(1, -6), "r": -0.28}, "Abdomen": {"p": Vector2(-5, -3)},
+					"PataF2": {"p": Vector2(3, -7), "r": -0.75}, "PataB1": {"p": Vector2(0, -7), "r": -0.55}}],
+				[0.38, {"Root": {"p": Vector2(4, 0)}, "Cabeza": {"p": Vector2(2, -4), "r": 0.1}, "PataF2": {"r": 0.15}}],
+				[0.5, {"Root": {"p": Vector2(4, 0)}}],
+				[0.7, {}],
+			]],
+			# Golpe: ojos en X, se echa atrás y abre las patas.
+			"hurt": [0.35, false, [
+				[0.0, {"Root": {"p": Vector2(-1, 0)}, "Cabeza": {"f": 1, "p": Vector2(0, -4), "r": -0.1},
+					"PataF2": {"r": 0.2}, "PataB1": {"r": 0.2}, "PataF1": {"r": -0.2}, "PataB2": {"r": -0.2}}],
+				[0.2, {"Cabeza": {"f": 1}}],
+				[0.35, {}],
+			]],
+		},
+	},
 }
