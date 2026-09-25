@@ -32,6 +32,8 @@ var attack_t := 0.0
 var attack_len := 0.3
 var attack_hit := false
 var attack_kind := ""
+## El golpe en curso es un tajo horizontal de hacha contra un árbol.
+var chop := false
 var invuln := 0.0
 var hurt_t := 0.0
 var downed := false
@@ -254,6 +256,12 @@ func _try_equip() -> bool:
 
 
 func _swing(kind: String, speed: float) -> void:
+	# Con el hacha delante de un árbol se tala con un tajo horizontal; si no, golpe normal.
+	chop = false
+	if kind in ["hacha", "granhacha"]:
+		for n in world.harvest_targets(self):
+			if n.kind == "arbol":
+				chop = true
 	attack_kind = kind
 	attack_len = speed
 	attack_t = speed
@@ -467,6 +475,8 @@ func current_anim() -> Array:
 	var race := model.race_id
 	if dash_t > 0.0:
 		return ["dash", int(anim_t * 12.0)]
+	if attack_t > 0.0 and chop:
+		return ["idle", 0]
 	if attack_t > 0.0:
 		var k := 1.0 - attack_t / attack_len
 		var n := Art.hero_count(race, "attack")
@@ -498,7 +508,46 @@ func _rig() -> Node2D:
 		add_child(rig)
 		rig_ap = rig.get_node("AnimationPlayer")
 		rig_ap.speed_scale = 0.0
+		_add_chop_anim()
 	return rig
+
+
+## Tajo horizontal a dos manos: se lleva el hacha atrás a la altura del pecho girando el
+## torso, se aguanta un instante y se descarga de lado con todo el cuerpo. Se crea por código
+## a partir de la pose de reposo (Torso 0,-2 · Cabeza 0,-8 · manos ±6,-4 · pies ±2,0).
+func _add_chop_anim() -> void:
+	var lib: AnimationLibrary = rig_ap.get_animation_library(&"")
+	if lib == null or lib.has_animation(&"chop"):
+		return
+	var a := Animation.new()
+	a.length = 0.3
+	# k (fracción del golpe) = 0, fin de la carga, tensión, impacto, seguimiento, vuelta.
+	var times := [0.0, 0.105, 0.13, 0.155, 0.21, 0.3]
+	var keys := {
+		"Root/ManoF:position": [Vector2(3, -5), Vector2(-5, -7), Vector2(-5, -7), Vector2(7, -6), Vector2(8, -5), Vector2(6, -4)],
+		"Root/ManoB:position": [Vector2(-2, -5), Vector2(-7, -6), Vector2(-7, -6), Vector2(4, -6), Vector2(5, -5), Vector2(-6, -4)],
+		"Root/Torso:rotation": [0.0, -0.22, -0.24, 0.16, 0.2, 0.0],
+		"Root/Cabeza:position": [Vector2(0, -8), Vector2(-1.5, -8), Vector2(-1.5, -8), Vector2(1.5, -7.5), Vector2(1.5, -7.5), Vector2(0, -8)],
+		"Root/PieF:position": [Vector2(2, 0), Vector2(3, 0), Vector2(3, 0), Vector2(4, 0), Vector2(4, 0), Vector2(2, 0)],
+		"Root/PieB:position": [Vector2(-2, 0), Vector2(-3, 0), Vector2(-3, 0), Vector2(-3, 0), Vector2(-3, 0), Vector2(-2, 0)],
+		"Root:position": [Vector2.ZERO, Vector2(-1, 0), Vector2(-1, 0), Vector2(1, 0), Vector2(1, 0), Vector2.ZERO],
+	}
+	# Pistas fijas: el resto de piezas en su pose de reposo (si no, heredarían la última
+	# animación que se reprodujo).
+	var fixed := {"Root:rotation": 0.0, "Root:scale": Vector2.ONE, "Root/Torso:position": Vector2(0, -2),
+		"Root/Cabeza:rotation": 0.0, "Root/ManoF:rotation": 0.0, "Root/ManoB:rotation": 0.0,
+		"Root/PieF:rotation": 0.0, "Root/PieB:rotation": 0.0}
+	for path in keys:
+		var tr := a.add_track(Animation.TYPE_VALUE)
+		a.track_set_path(tr, NodePath(path))
+		a.track_set_interpolation_type(tr, Animation.INTERPOLATION_CUBIC)
+		for i in times.size():
+			a.track_insert_key(tr, times[i], keys[path][i])
+	for path in fixed:
+		var tr2 := a.add_track(Animation.TYPE_VALUE)
+		a.track_set_path(tr2, NodePath(path))
+		a.track_insert_key(tr2, 0.0, fixed[path])
+	lib.add_animation(&"chop", a)
 
 
 ## Animación del esqueleto y el punto de la misma según el estado del héroe.
@@ -508,7 +557,7 @@ func rig_state() -> Array:
 	if dash_t > 0.0:
 		return ["dash", fmod(anim_t, 0.2)]
 	if attack_t > 0.0:
-		return ["attack", (1.0 - attack_t / attack_len) * 0.3]
+		return ["chop" if chop else "attack", (1.0 - attack_t / attack_len) * 0.3]
 	if hurt_t > 0.0:
 		return ["hurt", clampf(0.25 - hurt_t, 0.0, 0.25)]
 	if not on_floor and use_gravity:
@@ -585,6 +634,10 @@ func _draw() -> void:
 	if model.has_buff("furia"):
 		draw_rect(Rect2(-6, -17, 12, 17), Color(1, 0.2, 0.1, 0.18 + 0.1 * sin(anim_t * 10.0)))
 	var og: Vector2 = Vector2(fr["origin"])
+	var pose := _held_pose(rg, fr, og)
+	# Durante la carga del tajo el hacha queda detrás del cuerpo.
+	if pose.get("behind", false):
+		_draw_held(pose, base, sc, Color(col.r * 0.72, col.g * 0.72, col.b * 0.72, col.a))
 	if rg:
 		_draw_rig(Transform2D(0.0, Vector2(facing, 1), 0.0, base), col, squash)
 	else:
@@ -594,34 +647,9 @@ func _draw() -> void:
 	if hat:
 		var hd: Vector2 = (_rig_tr("Cabeza") * Vector2(0, -8)).round() if rg else Vector2(fr["head"]) - og
 		draw_texture(hat, hd + Vector2(-6, -10), col)
-	# Objeto en la mano: se calcula mirando a la derecha y luego se voltea.
-	var h = model.inv.held()
-	if not is_local and has_meta("held"):
-		var mh: String = get_meta("held")
-		h = null if mh == "" else {"id": mh, "n": 1}
-	if h != null and ItemDB.get_item(h["id"]).get("slot", "") == "":
-		var hp: Vector2 = _rig_tr("ManoF").origin.round() if rg else Vector2(fr["hand"]) - og
-		var rot := 0.0
-		var wc: String = ItemDB.get_item(h["id"]).get("wclass", "")
-		if attack_t > 0.0:
-			var k := 1.0 - attack_t / attack_len
-			rot = lerpf(-1.5, 1.9, ease(k, 0.5))
-		elif wc == "arco" or wc == "baston":
-			var ang := aim_angle if facing > 0 else PI - aim_angle
-			rot = wrapf(ang + PI / 4.0, -PI, PI)
-		elif not on_floor:
-			rot = -0.4
-		var tr := Transform2D(0.0, sc, 0.0, base) * Transform2D(rot, Vector2.ONE, 0.0, hp)
-		draw_set_transform_matrix(tr)
-		draw_texture(Art.icon(h["id"]), Vector2(-2, -10), col)
-		draw_set_transform(base, 0.0, sc)
-	# Estela del golpe.
-	if attack_t > 0.0 and attack_kind != "puño":
-		var k2 := 1.0 - attack_t / attack_len
-		if k2 > 0.25 and k2 < 0.85:
-			var a0 := lerpf(-2.2, 0.2, k2)
-			draw_arc(Vector2(2, -9), 15.0, a0 - 1.2, a0, 12, Color(1, 1, 1, 0.75 * (1.0 - k2)), 2.0)
-			draw_arc(Vector2(2, -9), 12.0, a0 - 0.9, a0, 10, Color(1, 1, 0.8, 0.4 * (1.0 - k2)), 1.0)
+	if not pose.is_empty() and not pose.get("behind", false):
+		_draw_held(pose, base, sc, col)
+	_draw_trail(pose, base, sc)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# Compañero.
 	var cp = Art.companion(model.companion_id, int(companion_t * 6.0))
@@ -629,3 +657,130 @@ func _draw() -> void:
 		var off := Vector2(-facing * 12.0, -24.0 + sin(companion_t * 3.0) * 3.0)
 		draw_texture(cp, off - Vector2(6, 6))
 	# El nombre (cooperativo) y el "¡Ayuda!" los dibuja GameUI en alta resolución.
+
+
+# --- Arma en la mano y golpes --------------------------------------------------------------
+
+## Fracción (0-1) de k dentro del tramo [a, b].
+static func _seg(k: float, a: float, b: float) -> float:
+	return clampf((k - a) / (b - a), 0.0, 1.0)
+
+
+## Giro del hacha alrededor del eje vertical en el tajo horizontal: 0 = hacia delante,
+## PI = detrás del cuerpo. Carga, tensión, descarga rápida y seguimiento.
+static func _chop_turn(k: float) -> float:
+	if k < 0.35:
+		return lerpf(0.35, 2.9, ease(_seg(k, 0.0, 0.35), 0.4))
+	if k < 0.45:
+		return lerpf(2.9, 3.0, _seg(k, 0.35, 0.45))
+	if k < 0.56:
+		return lerpf(3.0, 0.0, ease(_seg(k, 0.45, 0.56), 2.2))
+	return 0.0
+
+
+## Inclinación del hacha en el tajo: sube un poco al cargar y baja al golpear.
+static func _chop_tilt(k: float) -> float:
+	if k < 0.45:
+		return -0.3 * _seg(k, 0.0, 0.35)
+	if k < 0.56:
+		return lerpf(-0.3, 0.12, _seg(k, 0.45, 0.56))
+	return lerpf(0.12, 0.0, _seg(k, 0.56, 1.0))
+
+
+## Desplazamiento de la mano en el tajo para las razas sin esqueleto por piezas.
+static func _chop_hand_x(k: float) -> float:
+	if k < 0.45:
+		return lerpf(0.0, -8.0, ease(_seg(k, 0.0, 0.35), 0.4))
+	if k < 0.56:
+		return lerpf(-8.0, 4.0, _seg(k, 0.45, 0.56))
+	return lerpf(4.0, 0.0, _seg(k, 0.56, 1.0))
+
+
+## Rotación del arma en los golpes normales, con anticipación, descarga y seguimiento
+## propios de cada arma (el daño llega hacia k = 0,45).
+static func _swing_rot(wc: String, k: float) -> float:
+	match wc:
+		"espada", "hacha", "granhacha":
+			if k < 0.25:
+				return lerpf(-1.1, -2.3, ease(_seg(k, 0.0, 0.25), 0.5))
+			if k < 0.5:
+				return lerpf(-2.3, 1.7, ease(_seg(k, 0.25, 0.5), -2.0))
+			return lerpf(1.7, 1.2, _seg(k, 0.5, 1.0))
+		"pico":
+			# Se levanta bien alto, se aguanta y cae de golpe sobre la roca.
+			if k < 0.4:
+				return lerpf(-0.6, -2.6, ease(_seg(k, 0.0, 0.4), 0.5))
+			if k < 0.55:
+				return lerpf(-2.6, 1.3, ease(_seg(k, 0.4, 0.55), 2.0))
+			return lerpf(1.3, 1.0, _seg(k, 0.55, 1.0))
+		"red":
+			return lerpf(-1.8, 1.4, smoothstep(0.0, 1.0, k))
+	return lerpf(-1.5, 1.9, ease(k, 0.5))
+
+
+## Postura del objeto en la mano, calculada mirando a la derecha (luego se voltea con
+## `facing`). Vacío si no hay nada que dibujar.
+func _held_pose(rg: Node2D, fr: Dictionary, og: Vector2) -> Dictionary:
+	var h = model.inv.held()
+	if not is_local and has_meta("held"):
+		var mh: String = get_meta("held")
+		h = null if mh == "" else {"id": mh, "n": 1}
+	if h == null or ItemDB.get_item(h["id"]).get("slot", "") != "":
+		return {}
+	var hp: Vector2 = _rig_tr("ManoF").origin.round() if rg else Vector2(fr["hand"]) - og
+	var wc: String = ItemDB.get_item(h["id"]).get("wclass", "")
+	var rot := 0.0
+	var sx := 1.0
+	if attack_t > 0.0:
+		var k := 1.0 - attack_t / attack_len
+		if chop:
+			# El hacha apunta de lado (PI/4 la pone horizontal) y "gira" alrededor del eje
+			# vertical: en vista lateral eso es escalar en X, que es lo que hace que el tajo
+			# se lea horizontal.
+			rot = PI / 4.0 + _chop_tilt(k)
+			sx = cos(_chop_turn(k))
+			if rg == null:
+				hp += Vector2(_chop_hand_x(k), 1)
+		else:
+			rot = _swing_rot(wc, k)
+	elif wc == "arco" or wc == "baston":
+		var ang := aim_angle if facing > 0 else PI - aim_angle
+		rot = wrapf(ang + PI / 4.0, -PI, PI)
+	elif not on_floor:
+		rot = -0.4
+	return {"id": h["id"], "hand": hp, "rot": rot, "sx": sx, "behind": sx < 0.0, "wc": wc}
+
+
+func _draw_held(pose: Dictionary, base: Vector2, sc: Vector2, col: Color) -> void:
+	var hp: Vector2 = pose["hand"]
+	var tr := Transform2D(0.0, sc, 0.0, base) * Transform2D(Vector2(pose["sx"], 0), Vector2(0, 1), hp) * Transform2D(pose["rot"], Vector2.ZERO)
+	draw_set_transform_matrix(tr)
+	draw_texture(Art.icon(pose["id"]), Vector2(-2, -10), col)
+	draw_set_transform(base, 0.0, sc)
+
+
+## Estela del golpe: rayas horizontales en el tajo; arco que sigue al arma en el resto.
+func _draw_trail(pose: Dictionary, base: Vector2, sc: Vector2) -> void:
+	if attack_t <= 0.0 or attack_kind == "puño" or pose.is_empty():
+		return
+	var k := 1.0 - attack_t / attack_len
+	var hp: Vector2 = pose["hand"]
+	draw_set_transform(base, 0.0, sc)
+	if chop:
+		var s := _seg(k, 0.44, 0.66)
+		if s <= 0.0 or s >= 1.0:
+			return
+		var head_x := hp.x + 11.0 * cos(_chop_turn(k))
+		for i in 3:
+			var y := hp.y - 1.0 + (i - 1) * 2.0
+			var a := (1.0 - s) * (0.75 - i * 0.2)
+			draw_line(Vector2(hp.x - 13.0 + i * 3.0, y), Vector2(head_x, y), Color(1, 1, 0.88, a), 1.0)
+		return
+	var wc: String = pose["wc"]
+	var a_now := _swing_rot(wc, k) - PI / 4.0
+	var a_prev := _swing_rot(wc, maxf(0.0, k - 0.16)) - PI / 4.0
+	if absf(a_now - a_prev) < 0.35:
+		return
+	var fade := clampf(absf(a_now - a_prev) / 2.0, 0.3, 1.0)
+	draw_arc(hp, 13.0, minf(a_prev, a_now), maxf(a_prev, a_now), 12, Color(1, 1, 1, 0.7 * fade), 2.0)
+	draw_arc(hp, 10.0, minf(a_prev, a_now), maxf(a_prev, a_now), 10, Color(1, 1, 0.8, 0.35 * fade), 1.0)

@@ -53,6 +53,7 @@ func _collect(p: Node) -> void:
 			world.give_xp(p, value)
 			Sfx.play("xp", 0.2, -14.0)
 		_:
+			var got: int = stack["n"]
 			var left: int = p.model.inv.add(stack)
 			if left > 0:
 				stack["n"] = left
@@ -60,7 +61,7 @@ func _collect(p: Node) -> void:
 				pickup_delay = 1.5
 				return
 			Sfx.play("recoger", 0.1, -8.0)
-			world.fx.text(position + Vector2(0, -8), ItemDB.get_item(stack["id"]).get("name", ""), Color("#f0f0f0"))
+			world.fx.gain(p.center() + Vector2(0, -14), stack["id"], got)
 			world.on_pickup(p, stack)
 	dead = true
 

@@ -69,6 +69,26 @@ func text(p: Vector2, s: String, col: Color) -> void:
 	texts.append({"p": p, "s": s, "col": col, "life": 0.9})
 
 
+## "+N Objeto" al recoger. Si ya hay uno reciente del mismo objeto, suma en él en vez de
+## apilar otro texto (así recoger 5 maderas muestra "+5 Madera" y no cinco rótulos).
+func gain(p: Vector2, id: String, n: int) -> void:
+	var name: String = ItemDB.get_item(id).get("name", id)
+	for tx in texts:
+		if tx.get("gain", "") == id and tx["life"] > 0.35:
+			tx["n"] += n
+			tx["s"] = "+%d %s" % [tx["n"], name]
+			tx["life"] = 1.1
+			return
+	texts.append({"p": p, "s": "+%d %s" % [n, name], "col": Color("#f4f0e0"), "life": 1.1, "gain": id, "n": n})
+
+
+## Astillas que saltan al golpear un árbol o una roca, hacia el lado del golpe.
+func chips(p: Vector2, dir: float, col_a: Color, col_b: Color, n := 7) -> void:
+	for i in n:
+		var v := Vector2(dir * randf_range(40, 120), randf_range(-110, -30))
+		_add(p + Vector2(0, randf_range(-3, 3)), v, col_a if i % 2 == 0 else col_b, randf_range(0.3, 0.6), 320.0, 1.0 if i % 3 else 2.0)
+
+
 func afterimage(a: Node2D) -> void:
 	ghosts.append({"node": a, "p": a.position, "life": 0.2, "facing": a.facing})
 

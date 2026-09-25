@@ -78,6 +78,8 @@ func _ready() -> void:
 		_shots.call_deferred()
 	if "--ui-audit" in args:
 		_ui_audit.call_deferred()
+	if "--chop-test" in args:
+		_chop_test.call_deferred()
 	if "--anim-test" in args:
 		_anim_test.call_deferred()
 	if "--host-test" in args:
@@ -817,6 +819,74 @@ func _anim_test() -> void:
 	get_tree().quit()
 
 
+## Tira de fotogramas del tajo horizontal junto a un árbol (shots/chop_<raza>.png), para
+## revisar la animación. Una fila por raza: Minero (esqueleto por piezas) y otra con sprites.
+func _chop_test() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots"))
+	var rows: Array[Image] = []
+	var races := _owned_list("race", Content.RACES)
+	var other := 0
+	for i in races.size():
+		if races[i]["id"] != "minero":
+			other = i
+			break
+	for ri in [0, other]:
+		c_race = ri
+		var race: String = races[ri]["id"]
+		_start_single(4242)
+		await get_tree().create_timer(0.6).timeout
+		var w: World = run.world
+		w.god_mode = true
+		var h: Hero = game_ui.local_hero()
+		var tree: WorldNode = null
+		for n in w.nodes:
+			if n.kind == "arbol" and n.plant_h == 0 and (tree == null or n.position.distance_to(h.position) < tree.position.distance_to(h.position)):
+				tree = n
+		h.teleport(tree.position + Vector2(-13, 0))
+		h.facing = 1
+		h.model.inv.slots[0] = Inventory.make("hacha_madera", 1)
+		h.model.inv.hand = 0
+		await get_tree().create_timer(0.3).timeout
+		w.paused = true
+		h._swing("hacha", 0.3)
+		print("CHOP ", race, " tajo horizontal=", h.chop)
+		var frames: Array[Image] = []
+		for kk in [0.0, 0.2, 0.35, 0.45, 0.5, 0.56, 0.7, 0.95]:
+			h.attack_t = 0.3 * (1.0 - kk)
+			h.queue_redraw()
+			await RenderingServer.frame_post_draw
+			await RenderingServer.frame_post_draw
+			var img: Image = run.world_vp.get_texture().get_image()
+			var sp: Vector2 = h.position - w.camera.get_screen_center_position() + Vector2(Run.WORLD_RES) / 2.0
+			var fr := img.get_region(Rect2i(int(sp.x) - 22, int(sp.y) - 26, 44, 30))
+			fr.resize(44 * 6, 30 * 6, Image.INTERPOLATE_NEAREST)
+			frames.append(fr)
+		var strip := Image.create(frames.size() * 44 * 6, 30 * 6, false, frames[0].get_format())
+		for i in frames.size():
+			strip.blit_rect(frames[i], Rect2i(0, 0, 44 * 6, 30 * 6), Vector2i(i * 44 * 6, 0))
+		rows.append(strip)
+		w.paused = false
+		# Golpe real contra el árbol: se inclina y saltan astillas.
+		h.attack_t = 0.0
+		h.use_cd = 0.0
+		var inp := InputState.new()
+		inp.use = true
+		inp.use_pressed = true
+		inp.aim = h.center() + Vector2(40, 0)
+		run.remote_inputs[h.peer_id] = inp
+		h.is_local = false
+		await get_tree().create_timer(0.2).timeout
+		await RenderingServer.frame_post_draw
+		var hit_img: Image = run.world_vp.get_texture().get_image()
+		hit_img.resize(Run.WORLD_RES.x * 3, Run.WORLD_RES.y * 3, Image.INTERPOLATE_NEAREST)
+		hit_img.save_png(ProjectSettings.globalize_path("res://shots/chop_golpe_%s.png" % race))
+	var out := Image.create(rows[0].get_width(), rows[0].get_height() * rows.size(), false, rows[0].get_format())
+	for i in rows.size():
+		out.blit_rect(rows[i], Rect2i(Vector2i.ZERO, rows[i].get_size()), Vector2i(0, i * rows[i].get_height()))
+	out.save_png(ProjectSettings.globalize_path("res://shots/chop.png"))
+	get_tree().quit()
+
+
 # --- Prueba de red (desarrollo) ----------------------------------------------------------------
 
 func _net_test(as_host: bool) -> void:
@@ -969,6 +1039,19 @@ func _ui_audit() -> void:
 		game_ui.notify("+%d objeto de prueba con nombre largo" % i, UiKit.LIME)
 	game_ui.say("Mensaje de prueba bastante largo para comprobar que el aviso cabe en su sitio")
 	await _audit("hud")
+	# Aura dorada y pista junto a un árbol con el hacha en la mano.
+	var tree: WorldNode = null
+	for n in run.world.nodes:
+		if n.kind == "arbol" and n.plant_h == 0 and (tree == null or n.position.distance_to(h.position) < tree.position.distance_to(h.position)):
+			tree = n
+	if tree:
+		h.teleport(tree.position + Vector2(-13, 0))
+		h.facing = 1
+		h.model.inv.slots[0] = Inventory.make("hacha_madera", 1)
+		h.model.inv.hand = 0
+		await get_tree().create_timer(0.5).timeout
+		print("UI foco árbol: ", run.world.focus.get("harvest", []).size(), " recurso(s)")
+		await _audit("aura_arbol")
 	game_ui.toggle_inventory()
 	await get_tree().create_timer(0.2).timeout
 	await _audit("inventario")
@@ -990,12 +1073,20 @@ func _ui_audit() -> void:
 			game_ui.open_npc(n, h)
 			await _audit("npc_" + n.kind + ("_" + n.shop if n.shop != "" else ""))
 			game_ui.close()
+	print("UI npcs del pueblo: ", run.world.npcs.map(func(n): return n.kind))
 	for n in run.world.npcs:
 		if n.kind == "vecino":
 			n.talk()
-			h.position = n.position + Vector2(20, 0)
+			h.teleport(n.position + Vector2(-16, 0))
 			break
 	await get_tree().create_timer(0.4).timeout
 	await _audit("pueblo_rotulos")
+	for n in run.world.npcs:
+		if n.kind == "tendero":
+			h.teleport(n.position + Vector2(0, 0))
+			break
+	await get_tree().create_timer(0.5).timeout
+	print("UI foco tienda: ", run.world.focus.get("interact", {}).get("verb", "(nada)"))
+	await _audit("aura_tienda")
 	print("UI TOTAL problemas: ", _audit_total)
 	get_tree().quit()

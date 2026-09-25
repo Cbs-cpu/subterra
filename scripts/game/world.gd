@@ -36,6 +36,10 @@ var layer_back: Node2D
 var layer_mid: Node2D
 var layer_actors: Node2D
 var layer_front: Node2D
+var aura: FocusAura
+var aura_front: FocusAura
+## Lo que el jugador local tiene a un clic: {"hero", "interact": interact_target(), "harvest": [...]}.
+var focus := {}
 var fx: Fx
 var camera: Camera2D
 var bg_mat: ShaderMaterial
@@ -133,6 +137,13 @@ func _build_view() -> void:
 		l.child_entered_tree.connect(func(n): _adopt_lights.call_deferred(n))
 	fx = Fx.new()
 	sprite_layer.add_child(fx)
+	# Aura dorada de lo que el jugador tiene a un clic (detrás de todas las entidades).
+	aura = FocusAura.new()
+	sprite_layer.add_child(aura)
+	sprite_layer.move_child(aura, 0)
+	aura_front = FocusAura.new()
+	aura_front.front = true
+	sprite_layer.add_child(aura_front)
 	var ff := Fireflies.new()
 	ff.world = self
 	sprite_layer.add_child(ff)
@@ -178,6 +189,7 @@ func _adopt_lights(n: Node) -> void:
 
 
 func _process(_dt: float) -> void:
+	_update_focus()
 	for i in range(lights.size() - 1, -1, -1):
 		var e: Dictionary = lights[i]
 		var tg = e["target"]
@@ -512,12 +524,9 @@ func throw_item(hero: Node, id: String, aim: Vector2) -> void:
 # --- Combate ---------------------------------------------------------------------------
 
 func melee(hero: Hero, kind: String) -> void:
-	var reach := {"espada": 22.0, "granhacha": 27.0, "hacha": 18.0, "pico": 18.0, "red": 20.0, "puño": 13.0}.get(kind, 16.0)
 	var h = hero.model.inv.held()
 	var it := ItemDB.get_item(h["id"]) if h != null else {}
-	reach *= float(it.get("reach", 1.0))
-	var c := hero.center()
-	var r := Rect2(c.x if hero.facing > 0 else c.x - reach, c.y - 15, reach, 28)
+	var r := melee_rect(hero, kind)
 	var ctx := {"furia": hero.model.has_buff("furia")}
 	for b in hero.model.buffs:
 		if b.get("flag", "") == "arcana":
@@ -661,13 +670,14 @@ func on_hero_down(h: Hero) -> void:
 
 # --- Interacción ------------------------------------------------------------------------
 
-func interact(hero: Hero) -> void:
+## Aquello con lo que el héroe puede interactuar ahora mismo (tecla de interactuar):
+## {"node", "kind": "revive" | "npc" | "cofre", "verb"} o vacío. Lo usan la propia
+## interacción, el aura dorada y la pista en pantalla, así que siempre coinciden.
+func interact_target(hero: Hero) -> Dictionary:
 	var c := hero.center()
-	# Revivir a un compañero.
 	for p in players:
 		if p != hero and p.downed and p.center().distance_to(c) < 26.0:
-			p.revive()
-			return
+			return {"node": p, "kind": "revive", "verb": "Revivir a " + p.model.name}
 	var best: Node = null
 	var bd := 30.0
 	for n in npcs:
@@ -675,12 +685,94 @@ func interact(hero: Hero) -> void:
 		if n.rect().grow(10).has_point(c) and d < bd + 30.0:
 			bd = d
 			best = n
-	if best == null:
-		for n in nodes:
-			if not n.dead and n.kind == "cofre" and n.rect().grow(10).has_point(c):
-				n.interact(hero)
-				return
+	if best != null:
+		return {"node": best, "kind": "npc", "verb": _npc_verb(best)}
+	for n in nodes:
+		if not n.dead and n.kind == "cofre" and not n.open and n.rect().grow(10).has_point(c):
+			return {"node": n, "kind": "cofre", "verb": "Abrir cofre" + (" (llave)" if n.golden else "")}
+	return {}
+
+
+func _npc_verb(n: Npc) -> String:
+	match n.kind:
+		"puerta": return "Entrar: " + n.label()
+		"vecino": return "Hablar"
+		"altar": return "Altar"
+	return n.label()
+
+
+## Rectángulo que alcanza un golpe cuerpo a cuerpo del héroe con esa clase de arma.
+func melee_rect(hero: Hero, kind: String) -> Rect2:
+	var reach: float = {"espada": 22.0, "granhacha": 27.0, "hacha": 18.0, "pico": 18.0, "red": 20.0, "puño": 13.0}.get(kind, 16.0)
+	var h = hero.model.inv.held()
+	var it := ItemDB.get_item(h["id"]) if h != null else {}
+	reach *= float(it.get("reach", 1.0))
+	var c := hero.center()
+	return Rect2(c.x if hero.facing > 0 else c.x - reach, c.y - 15, reach, 28)
+
+
+## Recursos que la herramienta en la mano recogería con un clic (árbol con hacha, roca con
+## un pico suficiente, luz de bichos con red).
+func harvest_targets(hero: Hero) -> Array:
+	var h = hero.model.inv.held()
+	if h == null:
+		return []
+	var it := ItemDB.get_item(h["id"])
+	var wc: String = it.get("wclass", "")
+	var tool: String = it.get("tool", wc)
+	var tier: int = it.get("tier", 0)
+	var r := melee_rect(hero, wc)
+	var out := []
+	for n in nodes:
+		if n.dead or not r.intersects(n.rect()):
+			continue
+		match n.kind:
+			"arbol":
+				if tool == "hacha":
+					out.append(n)
+			"roca":
+				if tool == "pico" and tier >= int(WorldNode.ORE_REQ.get(n.ore, 0)):
+					out.append(n)
+			"luz_bicho":
+				if tool == "red":
+					out.append(n)
+	return out
+
+
+func _update_focus() -> void:
+	if aura == null:
 		return
+	var h: Hero = null
+	for p in players:
+		if p.is_local and not p.downed and not p.dead:
+			h = p
+	if h == null or paused:
+		focus = {}
+		aura.set_targets([])
+		aura_front.set_targets([])
+		return
+	var it := interact_target(h)
+	var hv := harvest_targets(h)
+	focus = {"hero": h, "interact": it, "harvest": hv}
+	var list := hv.duplicate()
+	if not it.is_empty():
+		list.push_front(it["node"])
+	aura.set_targets(list)
+	aura_front.set_targets(list)
+
+
+func interact(hero: Hero) -> void:
+	var tg := interact_target(hero)
+	if tg.is_empty():
+		return
+	match tg["kind"]:
+		"revive":
+			tg["node"].revive()
+			return
+		"cofre":
+			tg["node"].interact(hero)
+			return
+	var best: Node = tg["node"]
 	var npc: Npc = best
 	match npc.kind:
 		"puerta":

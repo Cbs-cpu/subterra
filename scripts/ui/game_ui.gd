@@ -44,6 +44,17 @@ var rebinding := ""
 var t := 0.0
 var held_key := ""
 var held_t := 0.0
+# Animaciones de la interfaz.
+var panel_t := 1.0            # tiempo desde que se abrió el panel actual
+var last_panel := ""
+var hp_ghost := 1.0           # estela de la barra de vida
+var hp_hold := 0.0
+var coins_shown := 0.0        # las monedas cuentan hacia arriba
+var coin_flash := 0.0
+var hand_t := 1.0             # salto de la ranura al cambiar de objeto
+var last_hand := -1
+var level_t := 1.0            # destello del nivel al subir
+var last_level := -1
 
 
 func _ready() -> void:
@@ -71,6 +82,13 @@ func _process(dt: float) -> void:
 	t += dt
 	msg_t = maxf(0.0, msg_t - dt)
 	held_t = maxf(0.0, held_t - dt)
+	panel_t += dt
+	hand_t += dt
+	level_t += dt
+	coin_flash = maxf(0.0, coin_flash - dt)
+	if panel != last_panel:
+		last_panel = panel
+		panel_t = 0.0
 	for n in notes:
 		n["t"] -= dt
 	notes = notes.filter(func(n): return n["t"] > 0.0)
@@ -83,12 +101,38 @@ func _process(dt: float) -> void:
 	# El nombre del objeto en la mano aparece un momento al cambiarlo.
 	var h := local_hero()
 	if h:
+		_animate_hud(h, dt)
 		var s = h.model.inv.held()
 		var k := "%d:%s" % [h.model.inv.hand, s["id"] if s != null else ""]
 		if k != held_key:
 			held_key = k
 			held_t = 2.2 if s != null else 0.0
 	draw_node.queue_redraw()
+
+
+func _animate_hud(h: Hero, dt: float) -> void:
+	var m := h.model
+	var k := float(m.hp) / m.max_hp()
+	if k >= hp_ghost:
+		hp_ghost = k
+		hp_hold = 0.0
+	else:
+		hp_hold += dt
+		if hp_hold > 0.35:
+			hp_ghost = move_toward(hp_ghost, k, dt * 1.2)
+	if last_level >= 0 and m.level > last_level:
+		level_t = 0.0
+	last_level = m.level
+	if m.inv.hand != last_hand:
+		if last_hand >= 0:
+			hand_t = 0.0
+		last_hand = m.inv.hand
+	if absf(coins_shown - m.coins) > 0.5:
+		if m.coins > coins_shown:
+			coin_flash = 0.3
+		coins_shown = move_toward(coins_shown, m.coins, maxf(1.0, absf(m.coins - coins_shown) * dt * 8.0))
+	else:
+		coins_shown = m.coins
 
 
 func notify(text: String, col: Color) -> void:
@@ -507,6 +551,11 @@ func _draw_ui() -> void:
 	if not full:
 		_draw_notes()
 		_draw_prompts(h)
+	# Los paneles aparecen con un pequeño zoom desde el centro.
+	var e := ease(clampf(panel_t / 0.14, 0.0, 1.0), 0.4)
+	var sc := lerpf(0.94, 1.0, e)
+	if panel != "" and sc < 1.0:
+		draw_node.draw_set_transform(Vector2(240, 135) * (1.0 - sc) + Vector2(0, (1.0 - e) * 4.0), 0.0, Vector2(sc, sc))
 	match panel:
 		"inventario": _draw_inventory()
 		"tienda": _draw_shop()
@@ -518,6 +567,7 @@ func _draw_ui() -> void:
 		"opciones": _draw_overlay_menu("opciones")
 		"controles": _draw_overlay_menu("controles")
 		"mapa": _draw_map()
+	draw_node.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 # --- HUD -------------------------------------------------------------------------------------------
@@ -533,9 +583,13 @@ func _draw_hud(h: Hero, full: bool) -> void:
 	c.draw_arc(bc, 10.0, 0.0, TAU, 40, Color(UiKit.GOLD_DEEP, 0.45), 1.8, true)
 	if m.xp > 0:
 		c.draw_arc(bc, 10.0, -PI / 2.0, -PI / 2.0 + TAU * clampf(float(m.xp) / need, 0.0, 1.0), 40, UiKit.YELLOW, 1.8, true)
+	if level_t < 0.8:
+		var lk := level_t / 0.8
+		c.draw_arc(bc, 11.0 + lk * 10.0, 0.0, TAU, 40, Color(UiKit.YELLOW, 1.0 - lk), 2.0, true)
 	UiKit.text(c, Vector2(bc.x, bc.y - UiKit.line_h(UiKit.L, "bold") / 2.0), str(m.level), UiKit.L, UiKit.YELLOW, 1, {"kind": "bold", "max_w": 17})
 	var hp_r := Rect2(34, 7, 104, 9)
-	UiKit.bar(c, hp_r, float(m.hp) / m.max_hp(), UiKit.RED if float(m.hp) / m.max_hp() > 0.3 or int(t * 4.0) % 2 == 0 else Color("#ff8a7a"))
+	UiKit.bar(c, hp_r, float(m.hp) / m.max_hp(), UiKit.RED if float(m.hp) / m.max_hp() > 0.3 or int(t * 4.0) % 2 == 0 else Color("#ff8a7a"),
+		Color(UiKit.INK, 0.75), hp_ghost)
 	UiKit.text(c, Vector2(hp_r.end.x - 4, hp_r.get_center().y - UiKit.line_h(UiKit.S, "bold") / 2.0), "%d/%d" % [m.hp, m.max_hp()],
 		UiKit.S, UiKit.TEXT, 2, {"kind": "bold", "outline": 2})
 	var mp_r := Rect2(34, 18.5, 104, 7)
@@ -548,16 +602,16 @@ func _draw_hud(h: Hero, full: bool) -> void:
 	_bolt(Vector2(92, 31))
 	UiKit.bar(c, Rect2(98, 29.5, 40, 3), m.stamina / m.max_stamina(), UiKit.YELLOW)
 	c.draw_texture_rect(Art.coin_icon(), Rect2(33, 36.5, 8, 8), false)
-	UiKit.text(c, Vector2(44, 40.5 - UiKit.line_h(UiKit.S, "bold") / 2.0), str(m.coins), UiKit.S, UiKit.YELLOW, 0, {"kind": "bold", "max_w": 60})
-	UiKit.text(c, Vector2(138, 40.5 - UiKit.line_h(UiKit.XS) / 2.0), "%d/%d exp" % [m.xp, need], UiKit.XS, UiKit.TEXT_MUTE, 2, {"max_w": 60})
+	UiKit.text(c, Vector2(44, 40.5 - UiKit.line_h(UiKit.S, "bold") / 2.0), str(roundi(coins_shown)), UiKit.S,
+		UiKit.YELLOW.lerp(Color.WHITE, coin_flash / 0.3), 0, {"kind": "bold", "max_w": 90})
 	# --- Arriba a la derecha: lugar y temporizador de la Ceniza.
 	var w: World = run.world
 	var place: String = "Pueblo" if w.is_town else Content.biome(w.biome)["name"]
-	var sub: String = "Zona segura" if w.is_town else ("El final" if w.biome == "nido" else "Distrito %d" % run.district)
+	var sub: String = "Zona segura" if w.is_town else ("El final" if w.biome == "nido" else "Distrito %d de %d" % [run.district, Content.FINAL_DISTRICT - 1])
 	var tl := w.time_left()
 	var ash := ""
 	if tl >= 0.0:
-		ash = "Ceniza  %d:%02d" % [int(maxf(tl, 0.0)) / 60, int(maxf(tl, 0.0)) % 60] if tl > 0.0 else "¡Guardianes!"
+		ash = "Guardianes en %d:%02d" % [int(maxf(tl, 0.0)) / 60, int(maxf(tl, 0.0)) % 60] if tl > 0.0 else "¡Guardianes!"
 	var right_w := maxf(UiKit.text_w(place, UiKit.M, "bold"), UiKit.text_w(sub, UiKit.XS))
 	right_w = minf(maxf(right_w, UiKit.text_w(ash, UiKit.S, "bold") + 12.0), 150.0) + 14.0
 	UiKit.box(c, Rect2(476 - right_w, 3, right_w, HUD_TOP if ash != "" else 26), Color(UiKit.BG_DEEP, 0.55), Color(UiKit.LINE, 0.35), 5)
@@ -580,7 +634,7 @@ func _draw_hud(h: Hero, full: bool) -> void:
 	var y := HUD_TOP + 7.0
 	var bx := 6.0
 	for b in m.buffs:
-		var label := "%s %ds" % [b.get("flag", b.get("stat", "")), int(b["t"])]
+		var label := "%s · %ds" % [_buff_label(b), int(b["t"])]
 		var bw := UiKit.text_w(label, UiKit.XS, "bold") + 8.0
 		if bx + bw > 146.0:
 			bx = 6.0
@@ -606,6 +660,8 @@ func _draw_hud(h: Hero, full: bool) -> void:
 		var on := i == m.inv.hand
 		if on:
 			r.position.y -= 2
+			if hand_t < 0.18:
+				r = r.grow((1.0 - hand_t / 0.18) * 2.0)
 		_slot_box(r, on, on)
 		_draw_stack(r.position, m.inv.slots[i])
 	for k in ns:
@@ -622,7 +678,7 @@ func _draw_hud(h: Hero, full: bool) -> void:
 		UiKit.text(c, Vector2(r2.position.x + 2, r2.position.y + 0.5), ["Z", "X", "C"][k] if k < 3 else "", UiKit.XS, UiKit.TEXT, 0, {"kind": "bold", "outline": 2})
 	# --- Cartel del distrito.
 	if card.size() > 0 and panel == "":
-		var a := clampf(card["t"], 0.0, 1.0)
+		var a := minf(clampf(card["t"], 0.0, 1.0), clampf((2.6 - card["t"]) / 0.35, 0.0, 1.0))
 		UiKit.vgrad(c, Rect2(0, 62, 480, 22), Color(0, 0, 0, 0), Color(0, 0, 0, 0.45 * a))
 		UiKit.vgrad(c, Rect2(0, 84, 480, 22), Color(0, 0, 0, 0.45 * a), Color(0, 0, 0, 0))
 		var tr := UiKit.text(c, Vector2(240, 64), card["title"], UiKit.H, Color(UiKit.YELLOW, a), 1, {"kind": "display", "shadow": true, "max_w": 300})
@@ -632,6 +688,17 @@ func _draw_hud(h: Hero, full: bool) -> void:
 		UiKit.text(c, Vector2(240, 118), "Todo el grupo ha caído", 16, UiKit.RED, 1, {"kind": "display", "shadow": true, "outline": 2})
 
 
+## Nombre legible de una mejora activa ("Furia", "Ataque +3"…).
+func _buff_label(b: Dictionary) -> String:
+	if b.has("flag"):
+		for sk in Content.SKILLS:
+			if sk["id"] == b["flag"]:
+				return sk["name"]
+		return {"arcana": "Armas arcanas", "carga": "Carga"}.get(b["flag"], str(b["flag"]).capitalize())
+	var stat: String = b.get("stat", "")
+	return "%s +%d" % [{"atk": "Ataque", "dex": "Destreza", "mag": "Magia"}.get(stat, stat), int(b.get("amount", 0))]
+
+
 func _bolt(p: Vector2) -> void:
 	draw_node.draw_colored_polygon(PackedVector2Array([p + Vector2(0.5, -4), p + Vector2(-2.5, 0.5), p + Vector2(-0.3, 0.5),
 		p + Vector2(-1, 4), p + Vector2(2.5, -1), p + Vector2(0.3, -1), p + Vector2(1.5, -4)]), UiKit.YELLOW)
@@ -639,25 +706,6 @@ func _bolt(p: Vector2) -> void:
 
 func _skill_icon(kind: String) -> String:
 	return {"guerrero": "espada_hierro", "mago": "baston_rayo", "explorador": "arco"}.get(kind, "espada_hierro")
-
-
-## Pista de interacción cercana: {key, text} o vacío.
-func _hint(h: Hero) -> Dictionary:
-	var hc := h.center()
-	var key := Game.key_label("interact")
-	for n in run.world.npcs:
-		if n.rect().grow(10).has_point(hc):
-			match n.kind:
-				"puerta": return {"key": key, "text": "Entrar: " + n.label()}
-				"vecino": return {"key": key, "text": "Hablar"}
-				_: return {"key": key, "text": n.label()}
-	for nd in run.world.nodes:
-		if not nd.dead and nd.kind == "cofre" and not nd.open and nd.rect().grow(10).has_point(hc):
-			return {"key": key, "text": "Abrir cofre" + (" (necesita llave)" if nd.golden else "")}
-	for p in run.world.players:
-		if p != h and p.downed and p.center().distance_to(hc) < 26.0:
-			return {"key": key, "text": "Revivir a " + p.model.name}
-	return {}
 
 
 ## Líneas de los avisos de abajo en el centro (de abajo arriba): objeto en la mano, pista
@@ -670,10 +718,6 @@ func _prompt_lines(h: Hero) -> Array:
 		var held = h.model.inv.held()
 		if held != null:
 			lines.append({"s": ItemDB.get_item(held["id"]).get("name", ""), "col": UiKit.QUALITY[held.get("q", 0)], "a": clampf(held_t * 2.0, 0.0, 1.0)})
-	if h and panel == "":
-		var hint := _hint(h)
-		if not hint.is_empty():
-			lines.append({"s": hint["text"], "key": hint["key"], "col": UiKit.YELLOW, "a": 1.0})
 	if msg_t > 0.0:
 		# Los mensajes largos se parten (como mucho 2 líneas) en vez de invadir los laterales.
 		var parts := UiKit.wrap_lines(msg, UiKit.S, PROMPT_W - 12.0)
@@ -732,9 +776,11 @@ func _draw_notes() -> void:
 	for i in range(notes.size() - 1, -1, -1):
 		var n: Dictionary = notes[i]
 		var col: Color = n["c"]
-		col.a = clampf(n["t"], 0.0, 1.0)
+		# Entran con un fundido y una subida corta (sin salirse de su columna).
+		var e := ease(clampf((3.5 - n["t"]) / 0.2, 0.0, 1.0), 0.4)
+		col.a = minf(clampf(n["t"], 0.0, 1.0), e)
 		y -= lh
-		UiKit.text(draw_node, Vector2(474, y), n["s"], UiKit.S, col, 2, {"kind": "bold", "outline": 2, "max_w": NOTES_W})
+		UiKit.text(draw_node, Vector2(474, y + (1.0 - e) * 5.0), n["s"], UiKit.S, col, 2, {"kind": "bold", "outline": 2, "max_w": NOTES_W})
 
 
 # --- Rótulos sobre el mundo ------------------------------------------------------------------------
@@ -781,18 +827,31 @@ func _draw_world_labels(h: Hero) -> void:
 	if card.size() > 0 and panel == "":
 		placed.append(Rect2(240 - 150, 60, 300, 56))
 	var items: Array = []
-	# Diálogos de vecinos: los más importantes, se colocan primero.
+	# Pista de lo que se tiene a un clic (lo mismo que marca el aura dorada): va la primera,
+	# sobre el propio objeto, con su tecla. Es lo único que lleva nombre además de las puertas.
+	var fc: Dictionary = w.focus
+	var focused: Node = null
+	if not fc.is_empty() and panel == "":
+		var it: Dictionary = fc["interact"]
+		if not it.is_empty():
+			focused = it["node"]
+			items.append({"kind": "prompt", "p": _to_screen(w, _top_of(focused)), "key": Game.key_label("interact"), "s": it["verb"]})
+		elif not fc["harvest"].is_empty():
+			var hn: Node = fc["harvest"][0]
+			var verb: String = {"arbol": "Talar", "roca": "Minar", "luz_bicho": "Atrapar"}.get(hn.kind, "Usar")
+			# Los árboles son altos: la pista va a la altura de la cabeza del héroe, junto al golpe.
+			var hr: Rect2 = fc["hero"].rect()
+			items.append({"kind": "prompt", "p": _to_screen(w, Vector2(hn.rect().get_center().x, minf(hr.position.y - 6.0, hn.rect().position.y - 2.0) if hn.kind != "arbol" else hr.position.y - 6.0)), "key": "Clic", "s": verb})
+	# Diálogos de vecinos.
 	for n in w.npcs:
 		if n.kind == "vecino" and n.talk_t > 0.0:
 			items.append({"kind": "bubble", "p": _to_screen(n, Vector2(0, -22)), "s": Npc.LINES[n.line_i], "a": clampf(n.talk_t * 2.0, 0.0, 1.0)})
-	# Nombres de tiendas, artesanos y puertas.
+	# Puertas: su bioma siempre a la vista, para elegir camino de un vistazo. El resto de
+	# nombres (tiendas, artesanos…) solo aparece en la pista al acercarse.
 	for n in w.npcs:
-		match n.kind:
-			"puerta":
-				var dc := Color(Content.biome(n.biome)["door"]).lightened(0.35)
-				items.append({"kind": "label", "p": _to_screen(n, Vector2(0, -54)), "s": n.label(), "col": dc, "size": UiKit.S})
-			"tendero", "herrero", "sastra", "peletero", "comprador":
-				items.append({"kind": "label", "p": _to_screen(n, Vector2(0, -48)), "s": n.label(), "col": Color("#ffe6a8"), "size": UiKit.S})
+		if n.kind == "puerta" and n != focused:
+			var dc := Color(Content.biome(n.biome)["door"]).lightened(0.35)
+			items.append({"kind": "label", "p": _to_screen(n, Vector2(0, -54)), "s": n.label(), "col": dc, "size": UiKit.S})
 	# Jugadores: nombre en cooperativo y petición de ayuda si están abatidos.
 	for p in w.players:
 		if p.downed:
@@ -808,6 +867,19 @@ func _draw_world_labels(h: Hero) -> void:
 	for it in items:
 		var p: Vector2 = it["p"]
 		if p.x < -10.0 or p.x > 490.0 or p.y < 0.0 or p.y > 290.0:
+			continue
+		if it["kind"] == "prompt":
+			var key: String = it["key"]
+			var kw := UiKit.text_w(key, UiKit.S, "bold") + 5.0 + 4.0
+			var tw2 := minf(UiKit.text_w(it["s"], UiKit.S, "bold"), 150.0)
+			var ph := UiKit.line_h(UiKit.S, "bold") + 4.0
+			var bob := sin(t * 4.0) * 1.0
+			var pr := _place(Rect2(p.x - (tw2 + kw + 10.0) / 2.0, p.y - ph - 4.0 + bob, tw2 + kw + 10.0, ph), placed)
+			if pr.size == Vector2.ZERO:
+				continue
+			UiKit.box(c, pr, Color(UiKit.BG_DEEP, 0.85), Color(UiKit.YELLOW, 0.8), 4)
+			var kr := UiKit.keycap(c, Vector2(pr.position.x + 5.0, pr.position.y + 1.5), key, UiKit.S)
+			UiKit.text(c, Vector2(kr.end.x + 4.0, pr.position.y + 2.0), it["s"], UiKit.S, UiKit.YELLOW, 0, {"kind": "bold", "max_w": tw2 + 0.5})
 			continue
 		if it["kind"] == "bubble":
 			var s: String = it["s"]
@@ -829,6 +901,12 @@ func _draw_world_labels(h: Hero) -> void:
 			if r2.size == Vector2.ZERO:
 				continue
 			UiKit.text(c, Vector2(r2.get_center().x, r2.position.y), s2, size, it["col"], 1, {"kind": "bold", "outline": 2, "max_w": 160})
+
+
+## Punto del mundo justo encima de un nodo (centro de su borde superior).
+func _top_of(n: Node) -> Vector2:
+	var r: Rect2 = n.rect()
+	return Vector2(r.get_center().x, r.position.y - 2.0)
 
 
 # --- Paneles ------------------------------------------------------------------------------------------

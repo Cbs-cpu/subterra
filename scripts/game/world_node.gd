@@ -15,6 +15,7 @@ var open := false
 var dead := false
 var t := 0.0
 var shake_t := 0.0
+var lean_dir := 0.0          # lado hacia el que se inclina al recibir un tajo
 var variant := 0
 var net_id := 0
 ## Árbol alto con dibujo de planta (0 = árbol normal): altura en píxeles y variante.
@@ -83,8 +84,13 @@ func hit_by(hero: Node, tool: String, tier: int) -> bool:
 		"arbol":
 			if tool != "hacha":
 				return false
-			shake_t = 0.2
+			shake_t = 0.3
 			var h: Hero = hero
+			# El tajo es horizontal: el árbol se inclina hacia el otro lado y saltan astillas
+			# a la altura del golpe.
+			lean_dir = float(h.facing)
+			world.fx.chips(Vector2(position.x - h.facing * 7.0, h.center().y), h.facing, Color("#d9a86c"), Color("#7a4a22"))
+			world.shake(0.8)
 			var n := 1 + tier / 2
 			world.drop_item(Inventory.make("madera", n), position + Vector2(0, -20), Vector2(world.rng.randf_range(-60, 60), -120))
 			if world.rng.randf() < 0.6:
@@ -107,6 +113,7 @@ func hit_by(hero: Node, tool: String, tier: int) -> bool:
 				return true
 			shake_t = 0.15
 			Sfx.play("minar", 0.15, -4.0)
+			world.fx.chips(Vector2(position.x - hero.facing * 8.0, position.y - 8), hero.facing, Color("#b8b8c8"), Color("#6a6a7a"), 5)
 			world.fx.burst(position + Vector2(0, -8), Color("#8b8b9c"), 3)
 			hp -= 1
 			if hp <= 0:
@@ -193,6 +200,13 @@ func _elem_col() -> Color:
 
 func _draw() -> void:
 	var sx := sin(t * 60.0) * 1.5 if shake_t > 0.0 else 0.0
+	var lean := 0.0
+	if kind == "arbol" and shake_t > 0.0 and lean_dir != 0.0:
+		# Se inclina desde la base con el golpe y vuelve con un rebote amortiguado.
+		var k := shake_t / 0.3
+		lean = lean_dir * 0.07 * k * cos((1.0 - k) * 14.0)
+		sx = 0.0
+		draw_set_transform_matrix(Transform2D(Vector2(1, 0), Vector2(-lean, 1), Vector2.ZERO))
 	if kind == "arbol" and shake_t <= 0.0:
 		sx = roundf(sin(t * 1.3 + variant) * 0.6)
 	match kind:
@@ -202,6 +216,7 @@ func _draw() -> void:
 			else:
 				var tt := Art.tree(world.biome, variant)
 				draw_texture(tt, Vector2(-tt.get_width() / 2.0 + sx, -tt.get_height()))
+			draw_set_transform_matrix(Transform2D.IDENTITY)
 		"roca":
 			draw_texture(Art.rock(ore, world.biome), Vector2(-9 + sx, -16))
 		"hierba":

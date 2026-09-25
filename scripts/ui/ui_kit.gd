@@ -328,10 +328,13 @@ static func button(ci: CanvasItem, r: Rect2, label: String, hover: bool, opts: D
 
 
 ## Barra de progreso redondeada.
-static func bar(ci: CanvasItem, r: Rect2, k: float, col: Color, back: Color = Color(INK, 0.75)) -> void:
+## `ghost` (0-1, opcional): estela clara de lo que se acaba de perder (la vida al recibir daño).
+static func bar(ci: CanvasItem, r: Rect2, k: float, col: Color, back: Color = Color(INK, 0.75), ghost: float = -1.0) -> void:
 	var rad := int(minf(r.size.y / 2.0, 3.0))
 	box(ci, r.grow(0.6), back, Color(0, 0, 0, 0), rad + 1)
 	k = clampf(k, 0.0, 1.0)
+	if ghost > k:
+		box(ci, Rect2(r.position, Vector2(maxf(r.size.x * minf(ghost, 1.0), r.size.y), r.size.y)), Color(1.0, 0.93, 0.8, 0.85), Color(0, 0, 0, 0), rad)
 	if k > 0.0:
 		var fr := Rect2(r.position, Vector2(maxf(r.size.x * k, r.size.y), r.size.y))
 		box(ci, fr, col, Color(0, 0, 0, 0), rad)
