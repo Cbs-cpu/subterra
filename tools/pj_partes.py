@@ -21,22 +21,23 @@ PAL = {
     "E": (10, 8, 8),        # ojo
     "S": (242, 201, 160),   # piel
     "s": (217, 168, 130),   # piel en sombra
+    "m": (170, 96, 80),     # boca
 }
 
 PARTES = {
-    # Cabeza cuadrada y frontal, estilo bloque: contorno negro, pelo arriba, banda verde
-    # con los ojos y la cara con la mitad izquierda en sombra.
+    # Cabeza cuadrada y frontal con pocos píxeles (6x6 por dentro): mechón de pelo arriba,
+    # banda verde con los ojos y sus puntas ondeando detrás, y la cara con sombra a la
+    # izquierda y una boquita.
     "cabeza": [
-        "OOOOOOOOOO",
-        "OHHHHHHhhO",
-        "OHHHHHHHhO",
-        "OHHHHHHHHO",
-        "OHGGGGGggO",
-        "OGdEGGdEgO",
-        "OsssSSSSSO",
-        "OsssSSSSSO",
-        "OsssSSSSSO",
-        "OOOOOOOOOO",
+        "......OO..",
+        "..OOOOHhOO",
+        "..OHHHHhhO",
+        "..OHHHHHhO",
+        "OOOGGGGggO",
+        "OGGGEGGEgO",
+        "OdOssSSSSO",
+        ".OOssSmSSO",
+        "..OOOOOOOO",
     ],
 }
 
