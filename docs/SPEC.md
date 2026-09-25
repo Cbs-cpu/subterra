@@ -315,3 +315,13 @@ Además: **guardianes de Ceniza** (en todos los distritos al agotar el tiempo), 
 
 ### Pendiente
 - El repositorio de GitHub se crea al tener el primer hito jugable. Hay que iniciar sesión con `gh auth login`. Esta spec se publicará como issue con la etiqueta `ready-for-agent`.
+
+### Estado de la implementación (2026-09-25)
+Los 6 hitos están implementados: base jugable, estructura completa, todos los biomas y jefes, metaprogresión, cooperativo online y pulido. Además hay un pase de estilo "tipo Magicite" (personajes chibi, penumbra con luces 2D, terreno con musgo, decoración, UI de paneles marrones, fuente 5x7, estelas y selección de rama de habilidad), con arte 100 % original.
+
+Desviaciones:
+- Tests con runner propio (`tests/run_tests.gd`), no GUT.
+- Inventario de 20 ranuras (5 en la barra rápida), como el original.
+- Las habilidades se eligen por rama (guerrero, mago, explorador) y la habilidad concreta sale al azar dentro de la rama.
+- La resolución interna es de 480x270 con escalado `canvas_items`, para suavizar el movimiento.
+- El cooperativo no tiene predicción en el cliente (pensado para LAN o latencias bajas).
