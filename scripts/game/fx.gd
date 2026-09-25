@@ -80,7 +80,7 @@ func _draw() -> void:
 			continue
 		var fr: Dictionary = Art.hero_frame(a.model.race_id, "dash", 0)
 		draw_set_transform(g["p"], 0.0, Vector2(g["facing"], 1))
-		draw_texture(fr["tex"], Vector2(-7, -18), Color(0.6, 0.8, 1.0, g["life"] * 2.5))
+		draw_texture(fr["tex"], -Vector2(fr["origin"]), Color(0.6, 0.8, 1.0, g["life"] * 2.5))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	for r in rings:
 		var k: float = 1.0 - r["life"] / r["max"]

@@ -59,6 +59,18 @@ En *Cooperativo*, uno pulsa **Crear partida** (puerto 7777) y los demás escribe
 ### Consola de depuración
 Pulsa **`** (acento grave; en teclado español, la tecla a la derecha de la P) o **F12**. `help` lista los comandos; **Tab** autocompleta (también ids de objetos, enemigos y biomas) y **↑/↓** recorren el historial. Algunos: `give <objeto> [n]`, `spawn <enemigo> [n]`, `kill`, `heal`, `god`, `noclip`, `level <n>`, `coins <n>`, `stat atk 5`, `skill <id>`, `district <bioma> [n]`, `town`, `door <n>`, `final`, `exit`, `reveal`, `time <s>`, `speed <x>`, `unlock all`, `info`, `stats` (FPS y entidades). En cooperativo los trucos solo funcionan en el anfitrión.
 
+### Animaciones del personaje principal (HyperFrames)
+El personaje principal (raza Minero) se anima por piezas en una composición de HyperFrames (`art_src/pj_hf/index.html`): cabeza, pelo, torso, brazos y piernas en SVG sobre una rejilla de 24x24, con poses clave interpoladas por GSAP para `idle`, `run`, `jump`, `fall`, `attack`, `hurt`, `dash` y `down`. Se renderiza a secuencia PNG y un script lo convierte en pixel art con anclajes de mano y cabeza:
+
+```bash
+cd art_src/pj_hf
+npx hyperframes render --format png-sequence --fps 24 --output ../../.hf_out/sprite
+npx hyperframes render --format png-sequence --fps 24 --variables '{"markers":true}' --output ../../.hf_out/markers
+cd ../.. && python tools/hf_to_sprites.py   # escribe assets/sprites/pj/ (+ .hf_out/revision.png)
+```
+
+El resto de razas, vecinos y enemigos siguen generándose por código (`scripts/art/`).
+
 Argumentos tras `--`: `--play` (partida directa), `--shots` (capturas en `shots/`), `--host-test` y `--join-test` (prueba de red en local).
 
 - `scripts/core/` contiene la lógica pura y testeada: objetos, recetas, inventario, héroe, combate, desbloqueos, contenido y generador de distritos.

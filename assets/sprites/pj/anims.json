@@ -1,0 +1,381 @@
+{
+ "size": [
+  24,
+  24
+ ],
+ "origin": [
+  12,
+  23
+ ],
+ "fps": 12,
+ "anims": {
+  "idle": [
+   {
+    "file": "idle_0.png",
+    "hand": [
+     13,
+     16
+    ],
+    "head": [
+     12,
+     4
+    ]
+   },
+   {
+    "file": "idle_1.png",
+    "hand": [
+     13,
+     16
+    ],
+    "head": [
+     12,
+     4
+    ]
+   },
+   {
+    "file": "idle_2.png",
+    "hand": [
+     14,
+     17
+    ],
+    "head": [
+     12,
+     5
+    ]
+   },
+   {
+    "file": "idle_3.png",
+    "hand": [
+     14,
+     17
+    ],
+    "head": [
+     12,
+     5
+    ]
+   },
+   {
+    "file": "idle_4.png",
+    "hand": [
+     14,
+     17
+    ],
+    "head": [
+     12,
+     6
+    ]
+   },
+   {
+    "file": "idle_5.png",
+    "hand": [
+     14,
+     17
+    ],
+    "head": [
+     12,
+     5
+    ]
+   },
+   {
+    "file": "idle_6.png",
+    "hand": [
+     14,
+     17
+    ],
+    "head": [
+     12,
+     5
+    ]
+   },
+   {
+    "file": "idle_7.png",
+    "hand": [
+     13,
+     17
+    ],
+    "head": [
+     12,
+     4
+    ]
+   }
+  ],
+  "run": [
+   {
+    "file": "run_0.png",
+    "hand": [
+     11,
+     16
+    ],
+    "head": [
+     14,
+     4
+    ]
+   },
+   {
+    "file": "run_1.png",
+    "hand": [
+     12,
+     16
+    ],
+    "head": [
+     14,
+     3
+    ]
+   },
+   {
+    "file": "run_2.png",
+    "hand": [
+     13,
+     15
+    ],
+    "head": [
+     14,
+     2
+    ]
+   },
+   {
+    "file": "run_3.png",
+    "hand": [
+     14,
+     16
+    ],
+    "head": [
+     14,
+     3
+    ]
+   },
+   {
+    "file": "run_4.png",
+    "hand": [
+     16,
+     16
+    ],
+    "head": [
+     14,
+     4
+    ]
+   },
+   {
+    "file": "run_5.png",
+    "hand": [
+     14,
+     16
+    ],
+    "head": [
+     14,
+     3
+    ]
+   },
+   {
+    "file": "run_6.png",
+    "hand": [
+     13,
+     16
+    ],
+    "head": [
+     14,
+     2
+    ]
+   },
+   {
+    "file": "run_7.png",
+    "hand": [
+     12,
+     16
+    ],
+    "head": [
+     14,
+     3
+    ]
+   }
+  ],
+  "jump": [
+   {
+    "file": "jump_0.png",
+    "hand": [
+     11,
+     16
+    ],
+    "head": [
+     14,
+     4
+    ]
+   },
+   {
+    "file": "jump_1.png",
+    "hand": [
+     14,
+     8
+    ],
+    "head": [
+     11,
+     3
+    ]
+   }
+  ],
+  "fall": [
+   {
+    "file": "fall_0.png",
+    "hand": [
+     16,
+     12
+    ],
+    "head": [
+     12,
+     4
+    ]
+   },
+   {
+    "file": "fall_1.png",
+    "hand": [
+     16,
+     12
+    ],
+    "head": [
+     12,
+     4
+    ]
+   }
+  ],
+  "attack": [
+   {
+    "file": "attack_0.png",
+    "hand": [
+     9,
+     10
+    ],
+    "head": [
+     8,
+     4
+    ]
+   },
+   {
+    "file": "attack_1.png",
+    "hand": [
+     9,
+     9
+    ],
+    "head": [
+     7,
+     4
+    ]
+   },
+   {
+    "file": "attack_2.png",
+    "hand": [
+     8,
+     10
+    ],
+    "head": [
+     7,
+     4
+    ]
+   },
+   {
+    "file": "attack_3.png",
+    "hand": [
+     19,
+     15
+    ],
+    "head": [
+     17,
+     6
+    ]
+   },
+   {
+    "file": "attack_4.png",
+    "hand": [
+     19,
+     14
+    ],
+    "head": [
+     16,
+     5
+    ]
+   },
+   {
+    "file": "attack_5.png",
+    "hand": [
+     18,
+     14
+    ],
+    "head": [
+     15,
+     4
+    ]
+   }
+  ],
+  "hurt": [
+   {
+    "file": "hurt_0.png",
+    "hand": [
+     12,
+     11
+    ],
+    "head": [
+     4,
+     7
+    ]
+   },
+   {
+    "file": "hurt_1.png",
+    "hand": [
+     13,
+     11
+    ],
+    "head": [
+     5,
+     6
+    ]
+   }
+  ],
+  "dash": [
+   {
+    "file": "dash_0.png",
+    "hand": [
+     14,
+     12
+    ],
+    "head": [
+     7,
+     4
+    ]
+   },
+   {
+    "file": "dash_1.png",
+    "hand": [
+     12,
+     14
+    ],
+    "head": [
+     19,
+     7
+    ]
+   }
+  ],
+  "down": [
+   {
+    "file": "down_0.png",
+    "hand": [
+     13,
+     16
+    ],
+    "head": [
+     21,
+     23
+    ]
+   },
+   {
+    "file": "down_1.png",
+    "hand": [
+     13,
+     16
+    ],
+    "head": [
+     21,
+     23
+    ]
+   }
+  ]
+ }
+}

@@ -322,12 +322,19 @@ func _draw_screen() -> void:
 		"final": _draw_final()
 
 
+## Dibuja un fotograma de personaje con los pies en `feet` y la escala dada.
+func _draw_frame(f: Dictionary, feet: Vector2, s: int) -> void:
+	var tex: Texture2D = f["tex"]
+	var og: Vector2 = Vector2(f.get("origin", Vector2i(7, 18)))
+	draw_node.draw_texture_rect(tex, Rect2(feet - og * s, tex.get_size() * s), false)
+
+
 func _draw_title() -> void:
 	_bg()
 	PixelFont.draw_centered(draw_node, 240, 36, "Subterra", COL_GOLD, 5)
 	PixelFont.draw_centered(draw_node, 240, 72, "tala, mina, combina y baja más hondo", COL_DIM)
 	var f := Art.hero_frame("minero", "run", int(t * 10.0))
-	draw_node.draw_texture_rect(f["tex"], Rect2(60, 150, 40, 52), false)
+	_draw_frame(f, Vector2(80, 202), 3)
 	var items := _title_items()
 	for k in items.size():
 		_button(Rect2(180, 120 + k * 18, 120, 16), items[k])
@@ -373,11 +380,12 @@ func _draw_create() -> void:
 	PixelFont.draw(draw_node, Vector2(170, 206), "verde: crece rápido  ·  rojo: crece despacio", COL_DIM)
 	# Vista previa.
 	var f := Art.hero_frame(race["id"], "run", int(t * 10.0))
-	draw_node.draw_texture_rect(f["tex"], Rect2(30, 70, 60, 78), false)
+	var feet := Vector2(60, 146)
+	_draw_frame(f, feet, 3)
 	var ht = Art.hat(hat["id"])
 	if ht:
-		var hd: Vector2i = f["head"]
-		draw_node.draw_texture_rect(ht, Rect2(30 + (hd.x - 7 + 1) * 3.0, 70 + (hd.y - 9) * 3.0, 42, 36), false)
+		var hp: Vector2 = feet + (Vector2(f["head"]) - Vector2(f["origin"]) + Vector2(-6, -10)) * 3.0
+		draw_node.draw_texture_rect(ht, Rect2(hp, ht.get_size() * 3.0), false)
 	var cp = Art.companion(comp["id"], int(t * 6.0))
 	if cp:
 		draw_node.draw_texture_rect(cp, Rect2(88, 60 + sin(t * 3.0) * 4.0, 24, 24), false)
@@ -436,7 +444,8 @@ func _draw_gallery() -> void:
 		var col := Color.WHITE if own else Color(0, 0, 0, 0.9)
 		match kind:
 			"race":
-				draw_node.draw_texture(Art.hero_frame(e["id"], "idle", int(t * 3.0))["tex"], r.position + Vector2(12, 6), col)
+				var gf := Art.hero_frame(e["id"], "idle", int(t * 6.0))
+				draw_node.draw_texture(gf["tex"], (r.position + Vector2(22, 38) - Vector2(gf["origin"])).round(), col)
 			"hat":
 				var ht = Art.hat(e["id"])
 				if ht:

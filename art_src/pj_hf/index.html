@@ -1,0 +1,153 @@
+<!doctype html>
+<html
+  lang="es"
+  data-composition-variables='[{"id":"markers","type":"boolean","label":"Solo marcadores de anclaje","default":false}]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=240, height=240" />
+    <!-- Personaje principal de Subterra (raza Minero) animado por piezas.
+         El lienzo es de 24x24 unidades (con margen para giros) (= píxeles del sprite) dibujado x10.
+         Cada animación es un segmento consecutivo del timeline; un script lo
+         convierte luego en sprites de 16x20 (tools/hf_to_sprites.py). -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 240px; height: 240px; overflow: hidden; background: transparent; }
+      #root { position: relative; width: 100%; height: 100%; }
+      #stage { position: absolute; inset: 0; }
+      svg { display: block; width: 240px; height: 240px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="2.6667" data-width="240" data-height="240">
+      <div id="stage" class="clip" data-start="0" data-duration="2.6667" data-track-index="0">
+        <svg viewBox="-4 -4 24 24" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">
+          <g id="body">
+            <!-- Pierna y brazo traseros -->
+            <g id="legB">
+              <rect x="6.1" y="13.2" width="1.8" height="4.6" fill="#2e1c10" />
+              <rect x="5.9" y="17.6" width="2.6" height="1.4" fill="#1e140c" />
+            </g>
+            <g id="armB">
+              <rect x="6" y="8.8" width="2.2" height="3.6" fill="#3a2414" />
+              <rect x="6" y="12.3" width="2.2" height="1.6" fill="#b0704a" />
+            </g>
+            <!-- Torso -->
+            <g id="torso">
+              <rect x="4.8" y="8.2" width="6.4" height="5.4" fill="#7a4e2a" />
+              <rect x="4.8" y="8.2" width="6.4" height="0.9" fill="#a8744a" />
+              <rect x="9.6" y="9.1" width="1.6" height="4.5" fill="#5a3a20" />
+              <rect x="4.8" y="12.6" width="6.4" height="1" fill="#3a2414" />
+              <rect x="7.6" y="12.6" width="1.2" height="1" fill="#c0901e" />
+            </g>
+            <!-- Cabeza grande (chibi) -->
+            <g id="head">
+              <rect x="3.4" y="1.1" width="9.4" height="7.4" fill="#e0a070" />
+              <rect x="4.2" y="1.1" width="7.8" height="1" fill="#f8cc98" />
+              <rect x="11" y="2.1" width="1.8" height="5.4" fill="#f8cc98" />
+              <rect x="3.4" y="7.5" width="9.4" height="1" fill="#b0704a" />
+              <!-- pelo -->
+              <rect x="3.2" y="0.2" width="9.6" height="2.2" fill="#5a3418" />
+              <rect x="2.6" y="1" width="2.4" height="5.4" fill="#5a3418" />
+              <rect x="8.2" y="2.2" width="2.2" height="1" fill="#5a3418" />
+              <!-- ojo, ceja y boca -->
+              <rect x="9.6" y="3.8" width="1.1" height="2.2" fill="#1a1320" />
+              <rect x="10.6" y="3.8" width="0.8" height="0.9" fill="#ffffff" />
+              <rect x="10.2" y="6.6" width="1.6" height="0.7" fill="#9a4a30" />
+              <rect id="mHead" class="marker" x="7.5" y="0" width="1.2" height="1.2" fill="#00ffff" />
+            </g>
+            <!-- Pierna y brazo delanteros -->
+            <g id="legF">
+              <rect x="8.1" y="13.2" width="1.8" height="4.6" fill="#3e2616" />
+              <rect x="7.9" y="17.6" width="2.8" height="1.4" fill="#2a1a10" />
+            </g>
+            <g id="armF">
+              <rect x="8.1" y="8.8" width="2.3" height="3.7" fill="#c89060" />
+              <rect x="9.9" y="8.8" width="0.5" height="3.7" fill="#8a5a33" />
+              <rect x="8.1" y="12.4" width="2.3" height="1.7" fill="#f8cc98" />
+              <rect id="mHand" class="marker" x="8.5" y="12.4" width="1.3" height="1.3" fill="#ff00ff" />
+            </g>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <script>
+      const FPS = 24;
+      // Segmentos (en fotogramas a 24 fps). El orden y la longitud deben coincidir con
+      // tools/hf_to_sprites.py.
+      const SEGMENTS = [
+        ["idle", 16], ["run", 16], ["jump", 4], ["fall", 4],
+        ["attack", 12], ["hurt", 4], ["dash", 4], ["down", 4],
+      ];
+      // Pose neutra. Ángulos en grados, positivo = hacia delante (derecha).
+      const BASE = { by: 0, bx: 0, lean: 0, sx: 1, sy: 1, hy: 0, hr: 0, aF: 12, aB: -12, lF: 0, lB: 0 };
+      // Poses clave por animación: [fracción del segmento, cambios sobre BASE].
+      const KEYS = {
+        idle: [[0, {}], [0.5, { by: 0.5, hy: 0.6, aF: 16, aB: -8, sy: 0.97, sx: 1.02 }], [1, {}]],
+        run: [
+          [0, { lF: 38, lB: -34, aF: -40, aB: 40, lean: 6, hr: 4 }],
+          [0.25, { by: -0.9, lF: 4, lB: -4, aF: 0, aB: 0, lean: 6, hr: 4, sy: 1.05, sx: 0.96 }],
+          [0.5, { lF: -34, lB: 38, aF: 40, aB: -40, lean: 6, hr: 4 }],
+          [0.75, { by: -0.9, lF: -4, lB: 4, aF: 0, aB: 0, lean: 6, hr: 4, sy: 1.05, sx: 0.96 }],
+          [1, { lF: 38, lB: -34, aF: -40, aB: 40, lean: 6, hr: 4 }],
+        ],
+        jump: [[0, { lF: 45, lB: -10, aF: 150, aB: 120, sy: 1.12, sx: 0.9, hr: -4 }], [1, { lF: 55, lB: 5, aF: 165, aB: 135, sy: 1.06, sx: 0.95, hr: -6 }]],
+        fall: [[0, { lF: 25, lB: -25, aF: 100, aB: 70, hr: 3 }], [1, { lF: 32, lB: -30, aF: 115, aB: 80, hr: 5, sy: 0.98 }]],
+        attack: [
+          [0, { aF: -150, aB: -30, lean: -8, hr: -6, lF: 10, lB: -10 }],
+          [0.3, { aF: -165, aB: -40, lean: -12, hr: -8, lF: 14, lB: -12, sy: 1.04 }],
+          [0.5, { aF: 80, aB: 20, lean: 12, hr: 8, bx: 0.8, lF: 25, lB: -20, sy: 0.94, sx: 1.06 }],
+          [0.75, { aF: 95, aB: 10, lean: 9, hr: 6, bx: 0.6, lF: 20, lB: -16 }],
+          [1, { aF: 30, aB: -10, lean: 2, hr: 1 }],
+        ],
+        hurt: [[0, { lean: -18, hr: -14, aF: 120, aB: 140, bx: -0.8, sy: 0.92, sx: 1.08 }], [1, { lean: -10, hr: -8, aF: 80, aB: 100, bx: -0.4 }]],
+        dash: [[0, { lean: 22, hr: 10, aF: -70, aB: -80, lF: -45, lB: -60, sy: 0.9, sx: 1.12 }], [1, { lean: 18, hr: 8, aF: -60, aB: -75, lF: -40, lB: -55, sy: 0.92, sx: 1.1 }]],
+        down: [[0, { lean: 90, bx: -9, by: 0, aF: 10, aB: -10, hr: 10 }], [1, { lean: 90, bx: -9, by: 0, aF: 14, aB: -8, hr: 12 }]],
+      };
+      // Orígenes de giro (unidades del SVG): pies, cuello, hombros y caderas.
+      const ORIGIN = { body: "8 19", head: "8 8.4", armF: "9.1 9.3", armB: "7.1 9.3", legF: "9 13.4", legB: "7 13.4" };
+
+      function props(p) {
+        return {
+          "#body": { x: p.bx, y: p.by, rotation: p.lean, scaleX: p.sx, scaleY: p.sy, svgOrigin: ORIGIN.body },
+          "#head": { y: p.hy, rotation: p.hr, svgOrigin: ORIGIN.head },
+          "#armF": { rotation: -p.aF, svgOrigin: ORIGIN.armF },
+          "#armB": { rotation: -p.aB, svgOrigin: ORIGIN.armB },
+          "#legF": { rotation: -p.lF, svgOrigin: ORIGIN.legF },
+          "#legB": { rotation: -p.lB, svgOrigin: ORIGIN.legB },
+        };
+      }
+
+      const tl = gsap.timeline({ paused: true });
+      let frame = 0;
+      for (const [name, frames] of SEGMENTS) {
+        const t0 = frame / FPS;
+        const dur = frames / FPS;
+        const keys = KEYS[name].map(([f, d]) => [f, Object.assign({}, BASE, d)]);
+        // Cada segmento arranca en su primera pose (sin mezclarse con el anterior).
+        const first = props(keys[0][1]);
+        for (const sel in first) tl.set(sel, first[sel], t0);
+        for (let i = 0; i < keys.length - 1; i++) {
+          const [fa] = keys[i];
+          const [fb, pb] = keys[i + 1];
+          const to = props(pb);
+          for (const sel in to) {
+            tl.to(sel, Object.assign({ duration: (fb - fa) * dur, ease: "sine.inOut" }, to[sel]), t0 + fa * dur);
+          }
+        }
+        frame += frames;
+      }
+
+      // Pasada de marcadores: se oculta el personaje y solo quedan los píxeles de anclaje.
+      const vars = window.__hyperframes && window.__hyperframes.getVariables ? window.__hyperframes.getVariables() : {};
+      if (vars.markers) {
+        document.querySelectorAll("#body rect:not(.marker)").forEach((r) => r.setAttribute("fill-opacity", "0"));
+      } else {
+        document.querySelectorAll(".marker").forEach((r) => r.setAttribute("fill-opacity", "0"));
+      }
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

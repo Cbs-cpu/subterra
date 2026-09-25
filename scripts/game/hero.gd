@@ -458,18 +458,23 @@ func revive() -> void:
 func current_anim() -> Array:
 	if downed or dead:
 		return ["down", 0]
+	var race := model.race_id
 	if dash_t > 0.0:
-		return ["dash", 0]
+		return ["dash", int(anim_t * 12.0)]
 	if attack_t > 0.0:
 		var k := 1.0 - attack_t / attack_len
-		return ["attack", clampi(int(k * 3.0), 0, 2)]
+		var n := Art.hero_count(race, "attack")
+		return ["attack", clampi(int(k * n), 0, n - 1)]
 	if hurt_t > 0.0:
-		return ["hurt", 0]
+		return ["hurt", 0 if hurt_t > 0.12 else 1]
 	if not on_floor and use_gravity:
-		return ["jump" if vel.y < 0.0 else "fall", 0]
+		if vel.y < 0.0:
+			return ["jump", 0 if vel.y < -170.0 else 1]
+		return ["fall", 0 if vel.y < 160.0 else 1]
 	if absf(vel.x) > 12.0:
-		return ["run", int(run_dist / 7.0)]
-	return ["idle", int(anim_t * 3.0)]
+		# Una zancada completa cada ~48 px, sea cual sea el número de fotogramas.
+		return ["run", int(run_dist / (48.0 / Art.hero_count(race, "run")))]
+	return ["idle", int(anim_t * Art.hero_count(race, "idle") / 1.3)]
 
 
 func _draw() -> void:
@@ -485,7 +490,8 @@ func _draw() -> void:
 		col = Color(2.5, 2.5, 2.5)
 	if downed:
 		draw_set_transform(Vector2(0, -4), -PI / 2.0 * facing, Vector2.ONE)
-		draw_texture(tex, Vector2(-7, -9), Color(1, 1, 1, 0.8))
+		var og0: Vector2 = Vector2(fr["origin"])
+		draw_texture(tex, -og0 + Vector2(0, 9), Color(1, 1, 1, 0.8))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		PixelFont.draw_centered(self, 0, -26, "¡ayuda!" if int(anim_t * 2.0) % 2 == 0 else "", Color("#ffd24a"))
 		return
@@ -506,12 +512,13 @@ func _draw() -> void:
 	# Brillo de habilidades activas.
 	if model.has_buff("furia"):
 		draw_rect(Rect2(-6, -17, 12, 17), Color(1, 0.2, 0.1, 0.18 + 0.1 * sin(anim_t * 10.0)))
-	draw_texture(tex, Vector2(-7, -18), col)
+	var og: Vector2 = Vector2(fr["origin"])
+	draw_texture(tex, -og, col)
 	# Sombrero.
 	var hat = Art.hat(model.hat_id)
 	if hat:
 		var hd: Vector2i = fr["head"]
-		draw_texture(hat, Vector2(hd.x - 7 - 7 + 1, -18 + hd.y - 10), col)
+		draw_texture(hat, Vector2(hd) - og + Vector2(-6, -10), col)
 	# Objeto en la mano: se calcula mirando a la derecha y luego se voltea.
 	var h = model.inv.held()
 	if not is_local and has_meta("held"):
@@ -519,7 +526,7 @@ func _draw() -> void:
 		h = null if mh == "" else {"id": mh, "n": 1}
 	if h != null and ItemDB.get_item(h["id"]).get("slot", "") == "":
 		var hand: Vector2i = fr["hand"]
-		var hp := Vector2(hand.x - 7, hand.y - 18)
+		var hp := Vector2(hand) - og
 		var rot := 0.0
 		var wc: String = ItemDB.get_item(h["id"]).get("wclass", "")
 		if attack_t > 0.0:

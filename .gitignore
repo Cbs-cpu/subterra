@@ -3,3 +3,6 @@ export/
 shots/
 art_export/
 *.tmp
+.hf_out/
+art_src/**/renders/
+art_src/**/node_modules/
