@@ -112,7 +112,7 @@ func tick(dt: float) -> void:
 	if on_floor and not was_floor:
 		jumps_used = 0
 		if vy_before > 180.0:
-			squash = Vector2(1.25, 0.8)
+			squash = Vector2(1.08, 0.93)
 			world.fx.dust(position, 4)
 			Sfx.play("aterrizar", 0.1, -12.0)
 	if absf(vel.x) > 5.0 and on_floor:
@@ -197,7 +197,7 @@ func _jump(v: float) -> void:
 	vel.y = -v
 	buffer_t = 0.0
 	on_floor = false
-	squash = Vector2(0.8, 1.2)
+	squash = Vector2(0.95, 1.05)
 	world.fx.dust(position, 3)
 	Sfx.play("salto", 0.1, -10.0)
 
@@ -518,8 +518,8 @@ func rig_state() -> Array:
 		return ["fall", clampf(vel.y / 400.0, 0.0, 1.0) * 0.4]
 	if absf(vel.x) > 12.0:
 		# Una zancada completa cada ~48 px.
-		return ["run", fmod(run_dist / 48.0, 1.0) * 0.48]
-	return ["idle", fmod(anim_t, 1.4)]
+		return ["run", fmod(run_dist / 44.0, 1.0) * 0.56]
+	return ["idle", fmod(anim_t, 2.0)]
 
 
 ## Transformación de una pieza respecto a los pies del héroe.
@@ -528,7 +528,8 @@ func _rig_tr(part: String) -> Transform2D:
 	return RigPose.pixel_tr(root.transform * (root.get_node(part) as Node2D).transform)
 
 
-func _draw_rig(base_tr: Transform2D, col: Color) -> void:
+## `sq` aplasta o estira moviendo las piezas, sin deformar sus píxeles.
+func _draw_rig(base_tr: Transform2D, col: Color, sq := Vector2.ONE) -> void:
 	var st := rig_state()
 	if rig_ap.current_animation != st[0]:
 		rig_ap.play(st[0])
@@ -537,7 +538,7 @@ func _draw_rig(base_tr: Transform2D, col: Color) -> void:
 	for n in RIG_ORDER:
 		var s: Sprite2D = root.get_node(n)
 		var t := RigPose.pixel_tr(root.transform * s.transform)
-		t.origin = t.origin.round()
+		t.origin = (t.origin * sq).round()
 		t = base_tr * t
 		draw_set_transform_matrix(t)
 		draw_texture(s.texture, s.offset, col)
@@ -585,7 +586,7 @@ func _draw() -> void:
 		draw_rect(Rect2(-6, -17, 12, 17), Color(1, 0.2, 0.1, 0.18 + 0.1 * sin(anim_t * 10.0)))
 	var og: Vector2 = Vector2(fr["origin"])
 	if rg:
-		_draw_rig(Transform2D(0.0, sc, 0.0, base), col)
+		_draw_rig(Transform2D(0.0, Vector2(facing, 1), 0.0, base), col, squash)
 	else:
 		draw_texture(tex, -og, col)
 	# Sombrero.

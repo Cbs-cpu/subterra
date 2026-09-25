@@ -33,89 +33,69 @@ const REST := {
 }
 
 ## Animaciones: [duración, bucle, [[tiempo, {pieza: cambios sobre REST}], ...]].
-## Principios: aplastar y estirar el cuerpo entero (Root), la cabeza va un poco retrasada
-## respecto al cuerpo, anticipación antes de los golpes y rebote al terminar. Las claves se
-## interpolan en cúbica y las posiciones se redondean al dibujar (movimiento a saltos de
-## píxel, como el pixel art de la época).
+## Estilo calmado y natural: movimientos de 1 píxel, giros pequeños, aplastar y estirar muy
+## leve y tiempos algo más lentos. Las claves se interpolan en cúbica y las posiciones se
+## redondean al dibujar (movimiento a saltos de píxel, como el pixel art de la época).
 const ANIMS := {
-	"idle": [1.4, true, [
+	# Respiración lenta: el cuerpo baja un píxel y las manos le siguen un poco después.
+	"idle": [2.0, true, [
 		[0.0, {}],
-		[0.35, {"Root": {"s": Vector2(1.04, 0.96)}, "ManoF": {"p": Vector2(6, -3)}, "ManoB": {"p": Vector2(-6, -3)}}],
-		[0.7, {"Root": {"s": Vector2(1.06, 0.94)}, "Cabeza": {"p": Vector2(0, -7)}, "ManoF": {"p": Vector2(6, -3)}, "ManoB": {"p": Vector2(-6, -3)}}],
-		[1.05, {"Root": {"s": Vector2(1.02, 0.98)}, "Cabeza": {"p": Vector2(0, -7)}}],
-		[1.4, {}],
+		[0.7, {"Root": {"s": Vector2(1.02, 0.98)}, "Cabeza": {"p": Vector2(0, -7)}}],
+		[1.1, {"Root": {"s": Vector2(1.02, 0.98)}, "Cabeza": {"p": Vector2(0, -7)}, "ManoF": {"p": Vector2(6, -3)}, "ManoB": {"p": Vector2(-6, -3)}}],
+		[1.6, {"ManoF": {"p": Vector2(6, -3)}, "ManoB": {"p": Vector2(-6, -3)}}],
+		[2.0, {}],
 	]],
-	# Zancada completa en 8 claves: contacto, bajada, paso y subida con cada pie.
-	"run": [0.48, true, [
-		[0.0, {"Root": {"r": 0.1, "s": Vector2(1.06, 0.94)}, "Cabeza": {"p": Vector2(0, -7)},
-			"PieF": {"p": Vector2(4, 0)}, "PieB": {"p": Vector2(-4, 0)}, "ManoF": {"p": Vector2(3, -5)}, "ManoB": {"p": Vector2(-8, -4)}}],
-		[0.06, {"Root": {"r": 0.1, "s": Vector2(1.08, 0.92)}, "Cabeza": {"p": Vector2(0, -7)},
-			"PieF": {"p": Vector2(2, 0)}, "PieB": {"p": Vector2(-4, -2)}, "ManoF": {"p": Vector2(4, -4)}, "ManoB": {"p": Vector2(-7, -4)}}],
-		[0.12, {"Root": {"p": Vector2(0, -1), "r": 0.1}, "Cabeza": {"p": Vector2(0, -8)},
-			"PieF": {"p": Vector2(0, 0)}, "PieB": {"p": Vector2(-1, -3)}, "ManoF": {"p": Vector2(6, -4)}, "ManoB": {"p": Vector2(-6, -4)}}],
-		[0.18, {"Root": {"p": Vector2(0, -2), "r": 0.1, "s": Vector2(0.95, 1.05)}, "Cabeza": {"p": Vector2(0, -9)},
-			"PieF": {"p": Vector2(-3, -1)}, "PieB": {"p": Vector2(2, -2)}, "ManoF": {"p": Vector2(8, -5)}, "ManoB": {"p": Vector2(-4, -5)}}],
-		[0.24, {"Root": {"r": 0.1, "s": Vector2(1.06, 0.94)}, "Cabeza": {"p": Vector2(0, -7)},
-			"PieF": {"p": Vector2(-4, 0)}, "PieB": {"p": Vector2(4, 0)}, "ManoF": {"p": Vector2(8, -4)}, "ManoB": {"p": Vector2(-3, -5)}}],
-		[0.30, {"Root": {"r": 0.1, "s": Vector2(1.08, 0.92)}, "Cabeza": {"p": Vector2(0, -7)},
-			"PieF": {"p": Vector2(-4, -2)}, "PieB": {"p": Vector2(2, 0)}, "ManoF": {"p": Vector2(7, -4)}, "ManoB": {"p": Vector2(-4, -4)}}],
-		[0.36, {"Root": {"p": Vector2(0, -1), "r": 0.1}, "Cabeza": {"p": Vector2(0, -8)},
-			"PieF": {"p": Vector2(-1, -3)}, "PieB": {"p": Vector2(0, 0)}, "ManoF": {"p": Vector2(6, -4)}, "ManoB": {"p": Vector2(-6, -4)}}],
-		[0.42, {"Root": {"p": Vector2(0, -2), "r": 0.1, "s": Vector2(0.95, 1.05)}, "Cabeza": {"p": Vector2(0, -9)},
-			"PieF": {"p": Vector2(2, -2)}, "PieB": {"p": Vector2(-3, -1)}, "ManoF": {"p": Vector2(3, -5)}, "ManoB": {"p": Vector2(-8, -5)}}],
-		[0.48, {"Root": {"r": 0.1, "s": Vector2(1.06, 0.94)}, "Cabeza": {"p": Vector2(0, -7)},
-			"PieF": {"p": Vector2(4, 0)}, "PieB": {"p": Vector2(-4, 0)}, "ManoF": {"p": Vector2(3, -5)}, "ManoB": {"p": Vector2(-8, -4)}}],
+	# Zancada tranquila: pasos cortos, un solo píxel de rebote y brazos que se balancean poco.
+	"run": [0.56, true, [
+		[0.0, {"Root": {"r": 0.04}, "PieF": {"p": Vector2(3, 0)}, "PieB": {"p": Vector2(-3, 0)},
+			"ManoF": {"p": Vector2(5, -4)}, "ManoB": {"p": Vector2(-7, -4)}}],
+		[0.14, {"Root": {"p": Vector2(0, -1), "r": 0.04}, "PieF": {"p": Vector2(1, 0)}, "PieB": {"p": Vector2(-1, -1)},
+			"ManoF": {"p": Vector2(6, -4)}, "ManoB": {"p": Vector2(-6, -4)}}],
+		[0.28, {"Root": {"r": 0.04}, "PieF": {"p": Vector2(-3, 0)}, "PieB": {"p": Vector2(3, 0)},
+			"ManoF": {"p": Vector2(7, -4)}, "ManoB": {"p": Vector2(-5, -4)}}],
+		[0.42, {"Root": {"p": Vector2(0, -1), "r": 0.04}, "PieF": {"p": Vector2(-1, -1)}, "PieB": {"p": Vector2(1, 0)},
+			"ManoF": {"p": Vector2(6, -4)}, "ManoB": {"p": Vector2(-6, -4)}}],
+		[0.56, {"Root": {"r": 0.04}, "PieF": {"p": Vector2(3, 0)}, "PieB": {"p": Vector2(-3, 0)},
+			"ManoF": {"p": Vector2(5, -4)}, "ManoB": {"p": Vector2(-7, -4)}}],
 	]],
-	# Del despegue (estirado, brazos arriba) a la cima (se recoge).
+	# Salto: brazos algo arriba al despegar y pies recogidos en la cima.
 	"jump": [0.4, false, [
-		[0.0, {"Root": {"s": Vector2(0.9, 1.1)}, "Cabeza": {"p": Vector2(0, -8)}, "ManoF": {"p": Vector2(5, -11)}, "ManoB": {"p": Vector2(-5, -11)},
+		[0.0, {"Root": {"s": Vector2(0.97, 1.03)}, "ManoF": {"p": Vector2(6, -7)}, "ManoB": {"p": Vector2(-6, -7)},
 			"PieF": {"p": Vector2(1, 0)}, "PieB": {"p": Vector2(-1, 0)}}],
-		[0.2, {"Root": {"s": Vector2(0.94, 1.06)}, "ManoF": {"p": Vector2(6, -9)}, "ManoB": {"p": Vector2(-6, -9)},
-			"PieF": {"p": Vector2(2, -2)}, "PieB": {"p": Vector2(-2, -1)}}],
-		[0.4, {"Root": {"s": Vector2(1.04, 0.96)}, "Cabeza": {"p": Vector2(0, -7)}, "ManoF": {"p": Vector2(7, -6)}, "ManoB": {"p": Vector2(-7, -6)},
-			"PieF": {"p": Vector2(2, -2)}, "PieB": {"p": Vector2(-2, -2)}}],
+		[0.4, {"ManoF": {"p": Vector2(6, -6)}, "ManoB": {"p": Vector2(-6, -6)}, "PieF": {"p": Vector2(2, -1)}, "PieB": {"p": Vector2(-2, -1)}}],
 	]],
-	# Caída: brazos que suben poco a poco, piernas abiertas buscando el suelo.
+	# Caída: brazos que se abren y suben un poco.
 	"fall": [0.4, false, [
-		[0.0, {"ManoF": {"p": Vector2(7, -7)}, "ManoB": {"p": Vector2(-7, -7)}, "PieF": {"p": Vector2(2, -1)}, "PieB": {"p": Vector2(-2, -1)}}],
-		[0.4, {"Root": {"s": Vector2(0.96, 1.04)}, "Cabeza": {"p": Vector2(0, -8)}, "ManoF": {"p": Vector2(7, -11)}, "ManoB": {"p": Vector2(-7, -11)},
-			"PieF": {"p": Vector2(3, 0)}, "PieB": {"p": Vector2(-3, -1)}}],
+		[0.0, {"ManoF": {"p": Vector2(6, -6)}, "ManoB": {"p": Vector2(-6, -6)}, "PieF": {"p": Vector2(2, -1)}, "PieB": {"p": Vector2(-2, -1)}}],
+		[0.4, {"ManoF": {"p": Vector2(7, -8)}, "ManoB": {"p": Vector2(-7, -8)}, "PieF": {"p": Vector2(2, 0)}, "PieB": {"p": Vector2(-2, 0)}}],
 	]],
-	# Ataque: anticipación (se encoge y echa la mano atrás), golpe con estiramiento,
-	# impacto aplastado y vuelta con rebote.
+	# Ataque: la mano sube por encima de la cabeza, baja en arco hacia delante y vuelve.
+	# El cuerpo apenas se inclina.
 	"attack": [0.3, false, [
-		[0.0, {"Root": {"r": -0.08, "s": Vector2(1.06, 0.94)}, "Cabeza": {"r": -0.08, "p": Vector2(-1, -7)}, "ManoF": {"p": Vector2(-4, -12)},
-			"ManoB": {"p": Vector2(-7, -5)}}],
-		[0.07, {"Root": {"r": -0.14, "s": Vector2(1.1, 0.9)}, "Cabeza": {"r": -0.12, "p": Vector2(-1, -7)}, "ManoF": {"p": Vector2(-2, -16)},
-			"ManoB": {"p": Vector2(-7, -6)}, "PieB": {"p": Vector2(-3, 0)}}],
-		[0.12, {"Root": {"r": 0.08, "s": Vector2(0.94, 1.06)}, "Cabeza": {"p": Vector2(1, -9), "r": 0.04}, "ManoF": {"p": Vector2(7, -12)},
-			"ManoB": {"p": Vector2(-6, -3)}, "PieF": {"p": Vector2(4, 0)}}],
-		[0.17, {"Root": {"r": 0.12, "s": Vector2(1.08, 0.92)}, "Cabeza": {"p": Vector2(1, -7), "r": 0.06}, "ManoF": {"p": Vector2(10, -5)},
-			"ManoB": {"p": Vector2(-5, -3)}, "PieF": {"p": Vector2(4, 0)}, "PieB": {"p": Vector2(-3, 0)}}],
-		[0.23, {"Root": {"r": 0.08, "s": Vector2(1.03, 0.97)}, "Cabeza": {"p": Vector2(1, -7), "r": 0.04}, "ManoF": {"p": Vector2(9, -3)},
-			"PieF": {"p": Vector2(3, 0)}}],
-		[0.3, {"Root": {"r": 0.0}, "ManoF": {"p": Vector2(7, -4)}}],
+		[0.0, {"Root": {"r": -0.03}, "ManoF": {"p": Vector2(0, -12)}}],
+		[0.08, {"Root": {"r": -0.04}, "ManoF": {"p": Vector2(3, -14)}}],
+		[0.15, {"Root": {"r": 0.05}, "Cabeza": {"p": Vector2(1, -8)}, "ManoF": {"p": Vector2(8, -9)}}],
+		[0.22, {"Root": {"r": 0.04}, "Cabeza": {"p": Vector2(1, -8)}, "ManoF": {"p": Vector2(8, -5)}, "PieF": {"p": Vector2(3, 0)}}],
+		[0.3, {"ManoF": {"p": Vector2(6, -4)}}],
 	]],
-	# Daño: sacudida hacia atrás aplastado, cabeza que se va más lejos y recupera.
+	# Daño: un pequeño respingo hacia atrás.
 	"hurt": [0.25, false, [
-		[0.0, {"Root": {"p": Vector2(-1, 0), "r": -0.24, "s": Vector2(1.1, 0.9)}, "Cabeza": {"p": Vector2(-1, -8), "r": -0.2},
-			"ManoF": {"p": Vector2(8, -9)}, "ManoB": {"p": Vector2(-9, -8)}, "PieF": {"p": Vector2(3, -1)}}],
-		[0.1, {"Root": {"r": -0.2, "s": Vector2(0.94, 1.06)}, "Cabeza": {"r": -0.22}, "ManoF": {"p": Vector2(8, -8)}, "ManoB": {"p": Vector2(-8, -7)}}],
-		[0.25, {"Root": {"r": -0.06}, "Cabeza": {"r": -0.06}, "ManoF": {"p": Vector2(7, -5)}, "ManoB": {"p": Vector2(-7, -5)}}],
+		[0.0, {"Root": {"r": -0.1}, "Cabeza": {"r": -0.06}, "ManoF": {"p": Vector2(7, -6)}, "ManoB": {"p": Vector2(-7, -6)}}],
+		[0.25, {"Root": {"r": -0.03}, "ManoF": {"p": Vector2(6, -5)}, "ManoB": {"p": Vector2(-6, -5)}}],
 	]],
-	# Dash: estirado en horizontal, inclinado, brazos y pies hacia atrás que ondean.
+	# Dash: inclinado hacia delante, brazos atrás.
 	"dash": [0.2, true, [
-		[0.0, {"Root": {"r": 0.24, "s": Vector2(1.16, 0.86)}, "Cabeza": {"p": Vector2(1, -8)}, "ManoF": {"p": Vector2(-3, -7)},
-			"ManoB": {"p": Vector2(-9, -6)}, "PieF": {"p": Vector2(-2, -1)}, "PieB": {"p": Vector2(-5, -1)}}],
-		[0.1, {"Root": {"r": 0.26, "s": Vector2(1.18, 0.84)}, "Cabeza": {"p": Vector2(1, -8)}, "ManoF": {"p": Vector2(-4, -6)},
-			"ManoB": {"p": Vector2(-10, -5)}, "PieF": {"p": Vector2(-3, 0)}, "PieB": {"p": Vector2(-6, -2)}}],
-		[0.2, {"Root": {"r": 0.24, "s": Vector2(1.16, 0.86)}, "Cabeza": {"p": Vector2(1, -8)}, "ManoF": {"p": Vector2(-3, -7)},
-			"ManoB": {"p": Vector2(-9, -6)}, "PieF": {"p": Vector2(-2, -1)}, "PieB": {"p": Vector2(-5, -1)}}],
+		[0.0, {"Root": {"r": 0.12}, "ManoF": {"p": Vector2(0, -5)}, "ManoB": {"p": Vector2(-8, -5)},
+			"PieF": {"p": Vector2(0, -1)}, "PieB": {"p": Vector2(-4, 0)}}],
+		[0.1, {"Root": {"r": 0.13}, "ManoF": {"p": Vector2(-1, -5)}, "ManoB": {"p": Vector2(-8, -4)},
+			"PieF": {"p": Vector2(-1, -1)}, "PieB": {"p": Vector2(-4, 0)}}],
+		[0.2, {"Root": {"r": 0.12}, "ManoF": {"p": Vector2(0, -5)}, "ManoB": {"p": Vector2(-8, -5)},
+			"PieF": {"p": Vector2(0, -1)}, "PieB": {"p": Vector2(-4, 0)}}],
 	]],
-	# Abatido: tumbado (el héroe gira el conjunto), brazos y pies relajados.
+	# Abatido: tumbado (el héroe gira el conjunto), relajado.
 	"down": [0.1, false, [
-		[0.0, {"ManoF": {"p": Vector2(5, -3)}, "ManoB": {"p": Vector2(-5, -3)}, "Cabeza": {"r": 0.15}}],
-		[0.1, {"ManoF": {"p": Vector2(5, -3)}, "ManoB": {"p": Vector2(-5, -3)}, "Cabeza": {"r": 0.15}}],
+		[0.0, {"ManoF": {"p": Vector2(5, -3)}, "ManoB": {"p": Vector2(-5, -3)}}],
+		[0.1, {"ManoF": {"p": Vector2(5, -3)}, "ManoB": {"p": Vector2(-5, -3)}}],
 	]],
 }
 

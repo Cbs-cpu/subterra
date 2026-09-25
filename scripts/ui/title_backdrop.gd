@@ -280,7 +280,7 @@ func _draw() -> void:
 
 
 func _draw_hero(feet: Vector2) -> void:
-	_rig_ap.seek(fmod(t, 1.4), true)
+	_rig_ap.seek(fmod(t, 2.0), true)
 	var r: Node2D = _rig.get_node("Root")
 	var base := Transform2D(0.0, Vector2(PX, PX), 0.0, feet * PX)
 	for n in RIG_ORDER:
