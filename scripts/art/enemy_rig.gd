@@ -8,7 +8,7 @@ extends RefCounted
 const SCENES := "res://scenes/enemigos/"
 ## Enemigos ya revisados que el juego dibuja por piezas. Los demás siguen con su sprite de
 ## siempre aunque su escena exista (se enseñan antes en un vídeo de revisión).
-const ENABLED := ["limo"]
+const ENABLED := ["limo", "arana"]
 const SPRITES := "res://assets/sprites/enemigos/"
 
 static var _defs := {}
