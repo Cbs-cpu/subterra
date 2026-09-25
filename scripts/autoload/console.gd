@@ -1,5 +1,5 @@
 extends CanvasLayer
-## Consola de depuración. Se abre con º (tecla bajo Esc) o F12.
+## Consola de depuración. Se abre con ` (acento grave) o F12.
 ## Tab autocompleta, ↑/↓ recorren el historial, "help" lista los comandos.
 
 const MAX_LINES := 200
@@ -84,7 +84,9 @@ func _input(ev: InputEvent) -> void:
 	if not ev is InputEventKey or not ev.pressed:
 		return
 	var k: InputEventKey = ev
-	if k.physical_keycode == KEY_QUOTELEFT or k.keycode == KEY_F12:
+	# ` según la distribución del teclado (en español es tecla muerta: se detecta por el
+	# código lógico o por el carácter).
+	if k.keycode == KEY_QUOTELEFT or k.unicode == 96 or k.keycode == KEY_F12:
 		open = not open
 		draw_node.queue_redraw()
 		get_viewport().set_input_as_handled()
@@ -119,7 +121,7 @@ func _input(ev: InputEvent) -> void:
 				else:
 					input = history[hist_i]
 		_:
-			if k.unicode > 31 and k.unicode != 186 and k.unicode != 170:
+			if k.unicode > 31 and k.unicode != 96:
 				input += char(k.unicode)
 	draw_node.queue_redraw()
 
