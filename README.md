@@ -20,6 +20,7 @@ Tala, mina, combina objetos de dos en dos, baja 20 distritos eligiendo bioma en 
 - **Modos Normal y Demente.** Cooperativo online por IP (ENet, anfitrión autoritativo).
 - **Movimiento:** aceleración, tiempo de coyote, búfer de salto, salto variable, doble salto, dash con invulnerabilidad e interpolación de física.
 - **Presentación estilo Magicite:** personajes chibi rechonchos y de pocos píxeles (cabeza ancha, barriga y piernas cortas), penumbra con luces 2D, terreno denso con musgo, decoración de fondo, estelas brillantes y música chiptune por bioma.
+- **Qué tienes a un clic:** lo que puedes usar ahora mismo (tienda, puerta, vecino, cofre, compañero abatido, o el árbol/roca/bichos que tu herramienta puede recoger) brilla con un aura dorada, esquinas doradas y una pista encima con su tecla ("F · Hablar", "Clic · Talar"). El hacha tala con un tajo horizontal y el árbol se inclina con cada golpe.
 - **Interfaz** con paleta verde y amarilla y **fuente pixelada gruesa propia** con sombra dura (`assets/fonts/subterra_pixel.ttf`, generada por `tools/make_font.py`): portada animada, menús y HUD con texto que nunca se solapa. El mundo sigue siendo pixel art de píxel uniforme (se dibuja a 480x270 en un SubViewport y se amplía en múltiplos enteros).
 
 ## Jugar
@@ -76,7 +77,7 @@ La escena se puede abrir y retocar en el editor (pestaña Animación); si se reg
 
 El resto de razas, vecinos, tenderos y enemigos con forma de persona usan el mismo sistema: `scripts/art/humanoid.gd` genera sus piezas (cabeza, torso, manos y pies con contorno negro y variantes: yelmos, setas, calaveras, túnicas…) y las monta con las poses que `RigPose` lee de las animaciones de `scenes/pj_rig.tscn`, así que todos se mueven igual que el protagonista. Los enemigos-criatura también van por piezas: `tools/enemigos.py` y `tools/enemigos_criaturas.py` dibujan las piezas (pivotes en `piezas.json`), `tools/enemy_defs*.gd` define esqueletos y animaciones, `tools/build_enemy_rig.gd` crea `scenes/enemigos/<id>.tscn` y `EnemyRig` las usa en el juego. `tools/enemies_grid_gif.gd` y `tools/enemy_gif.gd` hacen vídeos de revisión. Objetos, props y terreno llevan también contorno negro; los pueblos tienen casas, farolas, banderines y humo (`TownDecor`). Todos los árboles, también los altos de fondo, se talan. `python tools/contact_sheet.py` hace hojas de revisión en `shots/hoja_*.png` tras exportar el arte.
 
-Argumentos tras `--`: `--play` (partida directa), `--shots` (capturas en `shots/`), `--ui-audit` (recorre todas las pantallas y paneles, guarda `shots/ui_*.png` y avisa de cualquier texto que se solape o se salga de la pantalla), `--host-test` y `--join-test` (prueba de red en local).
+Argumentos tras `--`: `--play` (partida directa), `--shots` (capturas en `shots/`), `--chop-test` (tira de fotogramas del tajo de hacha en `shots/chop.png`), `--ui-audit` (recorre todas las pantallas y paneles, guarda `shots/ui_*.png` y avisa de cualquier texto que se solape o se salga de la pantalla), `--host-test` y `--join-test` (prueba de red en local).
 
 - `scripts/core/` contiene la lógica pura y testeada: objetos, recetas, inventario, héroe, combate, desbloqueos, contenido y generador de distritos.
 - `scripts/game/` contiene el mundo, el héroe, los enemigos y jefes, los proyectiles, recursos, trampas, el pueblo y la partida.
