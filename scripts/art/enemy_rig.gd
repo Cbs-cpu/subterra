@@ -6,9 +6,6 @@ extends RefCounted
 ## Las variantes de color usan las piezas de assets/sprites/enemigos/<spr>_<pal>/ si existen.
 
 const SCENES := "res://scenes/enemigos/"
-## Enemigos ya revisados que el juego dibuja por piezas. Los demás siguen con su sprite de
-## siempre aunque su escena exista (se enseñan antes en un vídeo de revisión).
-const ENABLED := ["limo", "arana"]
 const SPRITES := "res://assets/sprites/enemigos/"
 
 static var _defs := {}
@@ -16,7 +13,7 @@ static var _tex := {}
 
 
 static func has(spr: String) -> bool:
-	return spr in ENABLED and _def(spr) != null
+	return _def(spr) != null
 
 
 ## {parts: [{name, path, parent, tex, hframes, offset, rest: {position, rotation, frame}}], anims}

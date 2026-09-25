@@ -989,46 +989,46 @@ _data = {
 &"move": SubResource("Animation_qw066")
 }
 
-[node name="Arana" type="Node2D" unique_id=1134354681]
+[node name="Arana" type="Node2D" unique_id=1119434416]
 
-[node name="Root" type="Node2D" parent="." unique_id=1312102494]
+[node name="Root" type="Node2D" parent="." unique_id=193610522]
 
-[node name="PataB2" type="Sprite2D" parent="Root" unique_id=245780851]
+[node name="PataB2" type="Sprite2D" parent="Root" unique_id=1057897280]
 texture_filter = 1
 position = Vector2(-7, -5)
 texture = ExtResource("1_yp1yf")
 centered = false
 offset = Vector2(-8, -4)
 
-[node name="PataB1" type="Sprite2D" parent="Root" unique_id=3176963]
+[node name="PataB1" type="Sprite2D" parent="Root" unique_id=1433256735]
 texture_filter = 1
 position = Vector2(0, -5)
 texture = ExtResource("2_16vux")
 centered = false
 offset = Vector2(-1, -4)
 
-[node name="PataF1" type="Sprite2D" parent="Root" unique_id=1899163225]
+[node name="PataF1" type="Sprite2D" parent="Root" unique_id=1474074227]
 texture_filter = 1
 position = Vector2(-4, -5)
 texture = ExtResource("3_x66el")
 centered = false
 offset = Vector2(-8, -4)
 
-[node name="PataF2" type="Sprite2D" parent="Root" unique_id=1691905530]
+[node name="PataF2" type="Sprite2D" parent="Root" unique_id=44018814]
 texture_filter = 1
 position = Vector2(3, -5)
 texture = ExtResource("4_ghhc1")
 centered = false
 offset = Vector2(-1, -4)
 
-[node name="Abdomen" type="Sprite2D" parent="Root" unique_id=231260332]
+[node name="Abdomen" type="Sprite2D" parent="Root" unique_id=1051156793]
 texture_filter = 1
 position = Vector2(-4, -3)
 texture = ExtResource("5_lttgu")
 centered = false
 offset = Vector2(-7, -10)
 
-[node name="Cabeza" type="Sprite2D" parent="Root" unique_id=1852516801]
+[node name="Cabeza" type="Sprite2D" parent="Root" unique_id=2007586192]
 texture_filter = 1
 position = Vector2(1, -4)
 texture = ExtResource("6_wdwkg")
@@ -1036,6 +1036,6 @@ centered = false
 offset = Vector2(-2, -8)
 hframes = 2
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1092421219]
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1277998748]
 libraries/ = SubResource("AnimationLibrary_ch6ir")
 autoplay = &"idle"

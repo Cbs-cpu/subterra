@@ -1,0 +1,16 @@
+{
+ "campana": {
+  "pivot": [
+   8,
+   9
+  ],
+  "frames": 2
+ },
+ "tentaculo": {
+  "pivot": [
+   3,
+   2
+  ],
+  "frames": 2
+ }
+}

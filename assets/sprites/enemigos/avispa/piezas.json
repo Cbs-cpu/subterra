@@ -1,0 +1,23 @@
+{
+ "abdomen": {
+  "pivot": [
+   8,
+   6
+  ],
+  "frames": 1
+ },
+ "cabeza": {
+  "pivot": [
+   3,
+   6
+  ],
+  "frames": 2
+ },
+ "alas": {
+  "pivot": [
+   4,
+   8
+  ],
+  "frames": 2
+ }
+}

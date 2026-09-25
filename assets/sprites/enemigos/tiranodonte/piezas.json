@@ -1,0 +1,44 @@
+{
+ "cola": {
+  "pivot": [
+   15,
+   5
+  ],
+  "frames": 1
+ },
+ "pierna_fondo": {
+  "pivot": [
+   5,
+   2
+  ],
+  "frames": 1
+ },
+ "cuerpo": {
+  "pivot": [
+   13,
+   17
+  ],
+  "frames": 1
+ },
+ "pierna": {
+  "pivot": [
+   5,
+   2
+  ],
+  "frames": 1
+ },
+ "brazo": {
+  "pivot": [
+   3,
+   2
+  ],
+  "frames": 1
+ },
+ "cabeza": {
+  "pivot": [
+   5,
+   11
+  ],
+  "frames": 2
+ }
+}

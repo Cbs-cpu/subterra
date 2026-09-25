@@ -1,0 +1,23 @@
+{
+ "cuerpo": {
+  "pivot": [
+   7,
+   10
+  ],
+  "frames": 1
+ },
+ "cabeza": {
+  "pivot": [
+   4,
+   11
+  ],
+  "frames": 2
+ },
+ "pie": {
+  "pivot": [
+   4,
+   3
+  ],
+  "frames": 1
+ }
+}

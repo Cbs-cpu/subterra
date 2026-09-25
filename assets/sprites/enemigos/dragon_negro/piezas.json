@@ -1,0 +1,44 @@
+{
+ "cola": {
+  "pivot": [
+   11,
+   4
+  ],
+  "frames": 1
+ },
+ "ala_fondo": {
+  "pivot": [
+   5,
+   10
+  ],
+  "frames": 2
+ },
+ "pata": {
+  "pivot": [
+   3,
+   2
+  ],
+  "frames": 1
+ },
+ "cuerpo": {
+  "pivot": [
+   10,
+   7
+  ],
+  "frames": 1
+ },
+ "cabeza": {
+  "pivot": [
+   3,
+   8
+  ],
+  "frames": 2
+ },
+ "ala": {
+  "pivot": [
+   5,
+   10
+  ],
+  "frames": 2
+ }
+}

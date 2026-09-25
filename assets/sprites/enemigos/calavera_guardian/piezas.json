@@ -1,0 +1,16 @@
+{
+ "mandibula": {
+  "pivot": [
+   7,
+   2
+  ],
+  "frames": 1
+ },
+ "craneo": {
+  "pivot": [
+   9,
+   12
+  ],
+  "frames": 2
+ }
+}

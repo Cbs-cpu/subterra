@@ -8,6 +8,7 @@ deformar los píxeles.
 Uso: python tools/enemigos.py [enemigo]
 Escribe assets/sprites/enemigos/<enemigo>/<pieza>.png y shots/enemigo_<enemigo>_piezas.png.
 """
+import json
 import os
 import sys
 
@@ -227,9 +228,13 @@ def arana(pal="verde"):
 ENEMIGOS = {"limo": limo, "limo_azul": lambda: limo(LIMO_AZUL),
             "arana": arana, "arana_morada": lambda: arana("morada"), "arana_madre": lambda: arana("madre")}
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from enemigos_criaturas import CRIATURAS  # noqa: E402
+ENEMIGOS.update(CRIATURAS)
+
 
 def preview(name, parts, z=10):
-    ims = list(parts.values())
+    ims = [v[0] if isinstance(v, tuple) else v for v in parts.values()]
     w = sum(i.width for i in ims) + 20 * (len(ims) + 1)
     h = max(i.height for i in ims) + 40
     out = Image.new("RGBA", (w, h), (34, 30, 44, 255))
@@ -247,8 +252,15 @@ if __name__ == "__main__":
         parts = ENEMIGOS[n]()
         d = os.path.join(OUT, n)
         os.makedirs(d, exist_ok=True)
+        meta = {}
         for pn, im in parts.items():
+            if isinstance(im, tuple):
+                im, pivot, frames = im
+                meta[pn] = {"pivot": list(pivot), "frames": frames}
             im.save(os.path.join(d, pn + ".png"))
+        if meta:
+            with open(os.path.join(d, "piezas.json"), "w", encoding="utf-8") as f:
+                json.dump(meta, f, indent=1)
         os.makedirs("shots", exist_ok=True)
         preview(n, parts)
         print(n, "->", d, list(parts))

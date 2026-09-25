@@ -1,0 +1,30 @@
+{
+ "patas": {
+  "pivot": [
+   9,
+   2
+  ],
+  "frames": 2
+ },
+ "cuerpo": {
+  "pivot": [
+   9,
+   10
+  ],
+  "frames": 1
+ },
+ "pinza": {
+  "pivot": [
+   4,
+   6
+  ],
+  "frames": 2
+ },
+ "pinza_fondo": {
+  "pivot": [
+   4,
+   6
+  ],
+  "frames": 2
+ }
+}

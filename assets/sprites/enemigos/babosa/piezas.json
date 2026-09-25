@@ -1,0 +1,16 @@
+{
+ "cuerpo": {
+  "pivot": [
+   9,
+   9
+  ],
+  "frames": 3
+ },
+ "cabeza": {
+  "pivot": [
+   3,
+   8
+  ],
+  "frames": 2
+ }
+}

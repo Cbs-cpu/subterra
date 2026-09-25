@@ -1,0 +1,37 @@
+{
+ "brazo_fondo": {
+  "pivot": [
+   4,
+   3
+  ],
+  "frames": 1
+ },
+ "pierna": {
+  "pivot": [
+   5,
+   2
+  ],
+  "frames": 1
+ },
+ "torso": {
+  "pivot": [
+   11,
+   15
+  ],
+  "frames": 1
+ },
+ "cabeza": {
+  "pivot": [
+   6,
+   9
+  ],
+  "frames": 1
+ },
+ "brazo": {
+  "pivot": [
+   4,
+   3
+  ],
+  "frames": 1
+ }
+}

@@ -1,0 +1,37 @@
+{
+ "cuerpo": {
+  "pivot": [
+   10,
+   13
+  ],
+  "frames": 1
+ },
+ "cabeza": {
+  "pivot": [
+   3,
+   9
+  ],
+  "frames": 2
+ },
+ "pata": {
+  "pivot": [
+   3,
+   2
+  ],
+  "frames": 1
+ },
+ "pata_fondo": {
+  "pivot": [
+   3,
+   2
+  ],
+  "frames": 1
+ },
+ "cola": {
+  "pivot": [
+   4,
+   3
+  ],
+  "frames": 1
+ }
+}

@@ -1,0 +1,16 @@
+{
+ "segmento": {
+  "pivot": [
+   7,
+   5
+  ],
+  "frames": 1
+ },
+ "cabeza": {
+  "pivot": [
+   8,
+   10
+  ],
+  "frames": 2
+ }
+}

@@ -1,0 +1,16 @@
+{
+ "alas": {
+  "pivot": [
+   9,
+   7
+  ],
+  "frames": 3
+ },
+ "cuerpo": {
+  "pivot": [
+   3,
+   6
+  ],
+  "frames": 1
+ }
+}
