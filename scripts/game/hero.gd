@@ -53,7 +53,7 @@ func setup_hero(w: Node, m: HeroModel, pid: int, local: bool) -> void:
 	peer_id = pid
 	is_local = local
 	net_id = pid
-	var l := Art.make_light(Color("#fff0d8"), 180.0 if local else 120.0, 1.3)
+	var l := Art.make_light(Color("#fff4e0"), 190.0 if local else 140.0, 1.8)
 	l.position = Vector2(0, -8)
 	add_child(l)
 
@@ -489,7 +489,19 @@ func _draw() -> void:
 		PixelFont.draw_centered(self, 0, -26, "¡ayuda!" if int(anim_t * 2.0) % 2 == 0 else "", Color("#ffd24a"))
 		return
 	var sc := Vector2(squash.x * facing, squash.y)
-	draw_set_transform(Vector2.ZERO, 0.0, sc)
+	# Saltitos al correr y respiración en reposo.
+	var bob := 0.0
+	if a[0] == "run":
+		var ph := run_dist / 7.0 * PI / 3.0
+		bob = -absf(sin(ph)) * 1.5
+		sc.y *= 1.0 + cos(ph * 2.0) * 0.05
+	elif a[0] == "idle":
+		sc.y *= 1.0 + sin(anim_t * 3.0) * 0.04
+	elif a[0] == "jump" or a[0] == "fall":
+		sc.y *= 1.0 + clampf(-vel.y / 500.0, -0.15, 0.18)
+		sc.x *= 1.0 - clampf(-vel.y / 500.0, -0.15, 0.18) * 0.5
+	var base := Vector2(0, bob)
+	draw_set_transform(base, 0.0, sc)
 	# Brillo de habilidades activas.
 	if model.has_buff("furia"):
 		draw_rect(Rect2(-6, -17, 12, 17), Color(1, 0.2, 0.1, 0.18 + 0.1 * sin(anim_t * 10.0)))
@@ -517,15 +529,17 @@ func _draw() -> void:
 			rot = wrapf(ang + PI / 4.0, -PI, PI)
 		elif not on_floor:
 			rot = -0.4
-		var tr := Transform2D(0.0, sc, 0.0, Vector2.ZERO) * Transform2D(rot, Vector2.ONE, 0.0, hp)
+		var tr := Transform2D(0.0, sc, 0.0, base) * Transform2D(rot, Vector2.ONE, 0.0, hp)
 		draw_set_transform_matrix(tr)
 		draw_texture(Art.icon(h["id"]), Vector2(-2, -10), col)
-		draw_set_transform(Vector2.ZERO, 0.0, sc)
+		draw_set_transform(base, 0.0, sc)
 	# Estela del golpe.
 	if attack_t > 0.0 and attack_kind != "puño":
 		var k2 := 1.0 - attack_t / attack_len
-		if k2 > 0.3 and k2 < 0.8:
-			draw_arc(Vector2(3, -9), 13.0, -1.8, 1.0, 10, Color(1, 1, 1, 0.5 * (1.0 - k2)), 2.0)
+		if k2 > 0.25 and k2 < 0.85:
+			var a0 := lerpf(-2.2, 0.2, k2)
+			draw_arc(Vector2(2, -9), 15.0, a0 - 1.2, a0, 12, Color(1, 1, 1, 0.75 * (1.0 - k2)), 2.0)
+			draw_arc(Vector2(2, -9), 12.0, a0 - 0.9, a0, 10, Color(1, 1, 0.8, 0.4 * (1.0 - k2)), 1.0)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# Compañero.
 	var cp = Art.companion(model.companion_id, int(companion_t * 6.0))

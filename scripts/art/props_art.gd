@@ -59,28 +59,36 @@ const PLANT_COLORS := {
 }
 
 
-## Planta alta de fondo: tallo en zigzag con pares de hojas anchas.
+## Árbol alto de fondo: tronco fino con cojines de hojas redondeados, alternando lados.
 static func plant(biome: String, h: int, variant: int) -> ImageTexture:
 	var col: Array = PLANT_COLORS.get(biome, PLANT_COLORS["bosque"])
-	var c := Pix.new(16, h)
-	var stem := Color(col[3])
-	var x := 8
-	for y in range(h - 1, 2, -1):
-		if y % 5 == 0:
-			x += 1 if (y / 5 + variant) % 2 == 0 else -1
-		c.px(x, y, stem)
-		c.px(x + 1, y, stem.darkened(0.3))
-		if y % 7 == (variant % 7) and y < h - 3:
-			var d := 1 if (y / 7) % 2 == 0 else -1
-			for k in 5:
-				c.px(x + d * (k + 1), y - k / 2, Color(col[1]))
-				c.px(x + d * (k + 1), y - k / 2 + 1, Color(col[0]))
-			c.px(x + d * 5, y - 3, Color(col[2]))
-	# Copa superior.
-	c.ellipse(x + 0.5, 3, 3, 2.5, Color(col[1]))
-	c.px(x, 2, Color(col[2]))
-	c.px(x - 2, 4, Color(col[0]))
-	c.px(x + 3, 4, Color(col[0]))
+	var c := Pix.new(24, h)
+	var trunk := Color(col[3]).darkened(0.1)
+	var leaf := Color(col[1])
+	var leaf_hi := Color(col[2])
+	var leaf_lo := Color(col[0])
+	var x := 11
+	for y in range(6, h):
+		c.px(x, y, trunk)
+		c.px(x + 1, y, trunk.darkened(0.35))
+		if (y + variant) % 9 == 0:
+			c.px(x - 1 if (y / 9) % 2 == 0 else x + 2, y, trunk.lightened(0.2))
+	# Cojines de hojas.
+	var k := 0
+	for y in range(10 + variant % 4, h - 6, 9):
+		var side := -1 if k % 2 == 0 else 1
+		var cx := x + side * 5 + (1 if side > 0 else 0)
+		c.ellipse(cx, y, 3.6, 2.2, leaf_lo)
+		c.ellipse(cx, y - 0.6, 3.2, 1.7, leaf)
+		c.rect(cx - 2, y - 2, 3, 1, leaf_hi)
+		c.line(x + (1 if side > 0 else 0), y + 1, cx - side * 2, y, trunk)
+		k += 1
+	# Copa.
+	c.ellipse(x + 0.5, 4, 5.5, 3.8, leaf_lo)
+	c.ellipse(x + 0.5, 3.5, 5, 3.2, leaf)
+	c.rect(x - 3, 1, 5, 1, leaf_hi)
+	c.rect(x - 4, 2, 2, 1, leaf_hi)
+	c.outline(Color(leaf_lo.darkened(0.6)))
 	return c.tex()
 
 

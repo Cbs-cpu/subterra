@@ -228,7 +228,7 @@ static func _place_entities(out: Dictionary, grounds: Dictionary, biome: Diction
 		# Decoración de fondo (no interactiva).
 		for i in rng.randi_range(2, 5):
 			var sd: Vector2i = spots[rng.randi() % spots.size()]
-			ents.append({"kind": "planta", "pos": _px(sd), "h": rng.randi_range(30, 90), "v": rng.randi() % 5})
+			ents.append({"kind": "planta", "pos": _px(sd), "h": rng.randi_range(40, 120), "v": rng.randi() % 5})
 		for i in rng.randi_range(1, 4):
 			var vx := ox + rng.randi_range(2, RW - 3)
 			for vy in range(oy + 1, oy + RH - 2):

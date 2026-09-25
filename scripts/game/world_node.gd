@@ -174,9 +174,7 @@ func interact(hero: Node) -> bool:
 
 func _break() -> void:
 	dead = true
-	for ch in get_children():
-		if ch is PointLight2D:
-			ch.enabled = false
+	pass
 	world.fx.burst(position + Vector2(0, -8), Color("#9c6a3c") if kind == "arbol" else Color("#8b8b9c"), 8)
 
 

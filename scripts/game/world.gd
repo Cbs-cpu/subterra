@@ -50,6 +50,9 @@ var next_net_id := 1000
 var boss_node: Node = null
 var cam_target: Node = null
 var paused := false
+var sprite_layer: CanvasLayer
+var light_root: Node2D
+var lights: Array = []          # [{light, target, offset}]
 
 
 func setup(r: Node, m: Dictionary, seed_value: int) -> void:
@@ -69,9 +72,9 @@ func setup(r: Node, m: Dictionary, seed_value: int) -> void:
 		_spawn_from_data(e)
 	if is_town:
 		for x in range(6, mw - 4, 10):
-			var lamp := Art.make_light(Color("#ffd28a"), 90.0, 0.9)
+			var lamp := Art.make_light(Color("#ffd28a"), 110.0, 1.4)
 			lamp.position = Vector2(x * T + 8, (mh - 5) * T)
-			layer_back.add_child(lamp)
+			light_root.add_child(lamp)
 	for d in m.get("doors", []):
 		var n := Npc.new()
 		n.setup(self, {"kind": "puerta", "biome": d["biome"], "pos": d["pos"]})
@@ -103,17 +106,29 @@ func _build_view() -> void:
 	mat.set_shader_parameter("map_size", Vector2(mw, mh))
 	BiomeLook.apply_tiles(mat, biome)
 	tile_rect.material = mat
+	# Como en el original: la penumbra solo afecta al terreno y al fondo; los sprites se ven
+	# siempre con sus colores. Las entidades van en una capa aparte que sigue a la cámara y sus
+	# luces se trasladan a la capa del terreno (ver _adopt_lights).
+	add_child(tile_rect)
+	light_root = Node2D.new()
+	add_child(light_root)
+	sprite_layer = CanvasLayer.new()
+	sprite_layer.layer = 1
+	sprite_layer.follow_viewport_enabled = true
+	add_child(sprite_layer)
 	layer_back = Node2D.new()
 	layer_mid = Node2D.new()
 	layer_actors = Node2D.new()
 	layer_front = Node2D.new()
-	add_child(layer_back)
-	add_child(tile_rect)
-	add_child(layer_mid)
-	add_child(layer_actors)
-	add_child(layer_front)
+	for l in [layer_back, layer_mid, layer_actors, layer_front]:
+		sprite_layer.add_child(l)
+		l.child_entered_tree.connect(func(n): _adopt_lights.call_deferred(n))
 	fx = Fx.new()
-	add_child(fx)
+	sprite_layer.add_child(fx)
+	var ff := Fireflies.new()
+	ff.world = self
+	sprite_layer.add_child(ff)
+	sprite_layer.move_child(ff, 0)
 	var cm := CanvasModulate.new()
 	cm.color = BiomeLook.ambient("pueblo" if is_town else biome)
 	add_child(cm)
@@ -125,6 +140,31 @@ func _build_view() -> void:
 	camera.limit_bottom = int(map_h_px)
 	add_child(camera)
 	camera.make_current()
+
+
+## Mueve las luces hijas de una entidad a la capa del terreno y las hace seguirla.
+func _adopt_lights(n: Node) -> void:
+	if not is_instance_valid(n):
+		return
+	for ch in n.get_children():
+		if ch is PointLight2D:
+			var off: Vector2 = ch.position
+			n.remove_child(ch)
+			light_root.add_child(ch)
+			ch.global_position = n.global_position + off
+			lights.append({"light": ch, "target": n, "offset": off})
+
+
+func _process(_dt: float) -> void:
+	for i in range(lights.size() - 1, -1, -1):
+		var e: Dictionary = lights[i]
+		var tg = e["target"]
+		var l: PointLight2D = e["light"]
+		if not is_instance_valid(tg) or tg.get("dead") == true or not tg.visible:
+			l.queue_free()
+			lights.remove_at(i)
+			continue
+		l.global_position = tg.global_position + e["offset"]
 
 
 func _nid() -> int:

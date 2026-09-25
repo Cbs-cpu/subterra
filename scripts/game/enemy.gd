@@ -30,6 +30,8 @@ var shots := 0
 var scale_draw := 1.0
 var phase2 := false
 var contact_cd := 0.0
+var land_t := 0.0
+var was_floor := true
 
 
 func setup_enemy(w: Node, enemy_id: String, district: int, madman: bool) -> void:
@@ -82,6 +84,10 @@ func tick(dt: float) -> void:
 	knock = knock.move_toward(Vector2.ZERO, 900.0 * dt)
 	physics_move(dt)
 	vel -= knock
+	if on_floor and not was_floor:
+		land_t = 0.15
+	was_floor = on_floor
+	land_t = maxf(0.0, land_t - dt)
 	if ai != "aliado" and ai != "pasivo" and not concealed and dmg > 0:
 		_contact()
 
@@ -694,6 +700,8 @@ func _draw() -> void:
 			draw_rect(Rect2(-6, -2, 12, 2), Color("#6a3a5a"))
 		return
 	var anim := "move" if absf(vel.x) + absf(vel.y) > 8.0 else "idle"
+	if flying or data["ai"] in ["saltador", "mimico"]:
+		anim = "move" if not concealed else "idle"
 	if attacking or state == "windup":
 		anim = "attack"
 	if ai == "mimico" and concealed:
@@ -711,7 +719,40 @@ func _draw() -> void:
 	var sz := tex.get_size()
 	var sc := scale_draw
 	var shake_x := sin(anim_t * 60.0) if state == "windup" else 0.0
-	draw_set_transform(Vector2(shake_x, 0), 0.0, Vector2(facing * sc, sc))
+	# Animación "viva" como en el original: saltitos al andar, respiración en reposo,
+	# estiramiento en el aire, aplastamiento al aterrizar o al recibir un golpe.
+	var sx := 1.0
+	var sy := 1.0
+	var oy := 0.0
+	var moving := absf(vel.x) > 8.0
+	if flying:
+		oy = sin(anim_t * 5.0) * 2.5
+		sy = 1.0 + sin(anim_t * 10.0) * 0.05
+	elif not on_floor:
+		sy = 1.0 + clampf(-vel.y / 450.0, -0.22, 0.3)
+		sx = 1.0 - (sy - 1.0) * 0.6
+	elif moving:
+		var ph := anim_t * (14.0 if speed > 60.0 else 10.0)
+		oy = -absf(sin(ph)) * (2.0 if spr != "babosa" else 0.0)
+		sy = 1.0 + cos(ph * 2.0) * 0.07
+		sx = 1.0 - cos(ph * 2.0) * 0.05
+	else:
+		sy = 1.0 + sin(anim_t * 3.2) * 0.06
+		sx = 1.0 - sin(anim_t * 3.2) * 0.04
+	if land_t > 0.0:
+		sy *= 0.75
+		sx *= 1.2
+	if state == "windup":
+		sy *= 0.85
+		sx *= 1.12
+	if flash_t > 0.0:
+		sy *= 0.85
+		sx *= 1.15
+	if concealed and ai == "mimico":
+		sx = 1.0
+		sy = 1.0
+		oy = 0.0
+	draw_set_transform(Vector2(shake_x, oy), 0.0, Vector2(facing * sc * sx, sc * sy))
 	draw_texture(tex, Vector2(-sz.x / 2.0, -sz.y), col)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if ai == "jefe_reina":

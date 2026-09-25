@@ -47,6 +47,8 @@ func _ready() -> void:
 		_start_single(12345)
 	if "--shots" in args:
 		_shots.call_deferred()
+	if "--anim-test" in args:
+		_anim_test.call_deferred()
 	if "--host-test" in args:
 		_net_test(true)
 	if "--join-test" in args:
@@ -503,6 +505,26 @@ func _draw_final() -> void:
 			PixelFont.draw_centered(draw_node, 240, y, "%s: %s" % [kn, u["name"]], Color("#c8ffd0"))
 			y += 10
 	_button(Rect2(180, 228, 120, 16), "Menú principal")
+
+
+func _anim_test() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://shots"))
+	_start_single(4242)
+	await get_tree().create_timer(0.8).timeout
+	var h: Hero = game_ui.local_hero()
+	h.is_local = false
+	run.world.god_mode = true
+	for k in ["limo_verde", "arana_verde", "jabali", "avispa", "cerdo"]:
+		run.world.spawn_enemy(k, h.position + Vector2(70 + ["limo_verde", "arana_verde", "jabali", "avispa", "cerdo"].find(k) * 30, -10))
+	var inp := InputState.new()
+	inp.move = Vector2(1, 0)
+	run.remote_inputs[h.peer_id] = inp
+	for i in 10:
+		await get_tree().create_timer(0.08).timeout
+		run.remote_inputs[h.peer_id] = inp
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png(ProjectSettings.globalize_path("res://shots/anim_%02d.png" % i))
+	get_tree().quit()
 
 
 # --- Prueba de red (desarrollo) ----------------------------------------------------------------
