@@ -3,7 +3,8 @@ extends RefCounted
 ## Kit de la interfaz en alta resolución (portada, menús, HUD y rótulos del mundo).
 ##
 ## - Paleta principal verde y amarilla.
-## - Tipografías vectoriales (del sistema) que se dibujan nítidas a cualquier escala.
+## - Fuente pixelada gruesa propia (assets/fonts, generada por tools/make_font.py) con sombra
+##   dura de un píxel.
 ## - Texto que nunca se pisa: todo se mide antes de dibujarse y se reduce, se parte en
 ##   líneas o se recorta con "…" para caber en su caja.
 ## - Auditoría: con `audit = true` se guarda la caja de cada texto dibujado y
@@ -55,35 +56,38 @@ static var _soft: GradientTexture2D
 
 # --- Tipografías -------------------------------------------------------------------------------
 
-## "ui" (texto normal), "bold" (cifras, botones, títulos pequeños) o "display" (títulos).
-static func font(kind: String = "ui") -> Font:
-	if _fonts.has(kind):
-		return _fonts[kind]
-	var f := SystemFont.new()
-	match kind:
-		"display":
-			f.font_names = PackedStringArray(["Constantia", "Cambria", "Georgia", "Palatino Linotype", "serif"])
-			f.font_weight = 700
-		"bold":
-			f.font_names = PackedStringArray(["Bahnschrift", "Segoe UI", "Helvetica Neue", "Arial", "sans-serif"])
-			f.font_weight = 700
-		_:
-			f.font_names = PackedStringArray(["Bahnschrift", "Segoe UI", "Helvetica Neue", "Arial", "sans-serif"])
-			f.font_weight = 500
-	f.antialiasing = TextServer.FONT_ANTIALIASING_GRAY
-	f.hinting = TextServer.HINTING_LIGHT
-	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_AUTO
+## Todas las tipografías son la fuente pixelada gruesa del juego (tools/make_font.py). Se
+## mantiene `kind` ("ui", "bold", "display") por compatibilidad: solo cambia el tamaño que
+## se le pide.
+const FONT_PATH := "res://assets/fonts/subterra_pixel.ttf"
+
+
+static func font(_kind: String = "ui") -> Font:
+	if _fonts.has("px"):
+		return _fonts["px"]
+	var f: FontFile = load(FONT_PATH).duplicate()
+	f.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	f.hinting = TextServer.HINTING_NONE
+	f.subpixel_positioning = TextServer.SUBPIXEL_POSITIONING_DISABLED
+	f.generate_mipmaps = false
 	f.allow_system_fallback = true
-	_fonts[kind] = f
+	_fonts["px"] = f
 	return f
 
 
+## Tamaño real con el que se dibuja: la fuente mide 8 px de em, así que solo se usan
+## múltiplos de 4 (cada píxel de la fuente ocupa 1, 1,5, 2… píxeles lógicos y queda nítido
+## en la pantalla x2). El mínimo es 8 (un píxel de fuente por píxel lógico).
+static func px(size: int) -> int:
+	return maxi(8, int(round(size / 4.0)) * 4)
+
+
 static func line_h(size: int, kind: String = "ui") -> float:
-	return font(kind).get_height(size)
+	return font(kind).get_height(px(size))
 
 
 static func text_w(s: String, size: int, kind: String = "ui") -> float:
-	return font(kind).get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	return font(kind).get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, px(size)).x
 
 
 ## Recorta con "…" hasta que el texto quepa en max_w.
@@ -125,6 +129,8 @@ static func fit_size(s: String, size: int, max_w: float, min_size: int, kind: St
 	var sz := size
 	while sz > min_size and text_w(s, sz, kind) > max_w:
 		sz -= 1
+		while sz > min_size and px(sz) == px(sz + 1):
+			sz -= 1
 	return sz
 
 
@@ -147,38 +153,41 @@ static func text(ci: CanvasItem, pos: Vector2, s: String, size: int, col: Color,
 	var f := font(kind)
 	var spacing: float = opts.get("spacing", 0.0)
 	var w := text_w(s, sz, kind) + spacing * maxf(0.0, s.length() - 1)
-	var h := f.get_height(sz)
+	var h := f.get_height(px(sz))
 	var x := pos.x - (w / 2.0 if align == 1 else (w if align == 2 else 0.0))
 	# Centra verticalmente la caja de un tamaño menor dentro del renglón original.
-	var y := pos.y + (f.get_height(size) - h) / 2.0
-	var base := Vector2(x, y + f.get_ascent(sz))
+	var y := pos.y + (f.get_height(px(size)) - h) / 2.0
+	# Posiciones enteras: la fuente es de píxeles y no debe caer entre dos.
+	x = roundf(x)
+	y = roundf(y)
+	var base := Vector2(x, y + f.get_ascent(px(sz)))
 	var outline: int = opts.get("outline", 0)
 	var oc: Color = opts.get("outline_col", Color(INK, 0.85))
 	oc.a *= col.a
-	if opts.get("shadow", false):
-		_glyphs(ci, f, base + Vector2(0, 0.7), s, sz, Color(INK, 0.55 * col.a), spacing, 0, oc)
+	var fs := px(sz)
+	# Sombra dura de un píxel (la de siempre en los juegos de pixel art); "flat" la quita.
+	if not opts.get("flat", false) or opts.get("shadow", false):
+		_glyphs(ci, f, base + Vector2(1, 1), s, fs, Color(INK, 0.8 * col.a), spacing)
 	if outline > 0:
-		_glyphs(ci, f, base, s, sz, oc, spacing, outline, oc)
-	_glyphs(ci, f, base, s, sz, col, spacing, 0, oc)
-	var r := Rect2(x, y, w, h)
+		var r := maxi(1, int(round(outline / 2.0)))
+		for oy in range(-r, r + 1):
+			for ox in range(-r, r + 1):
+				if (ox != 0 or oy != 0) and absi(ox) + absi(oy) <= r + 1:
+					_glyphs(ci, f, base + Vector2(ox, oy), s, fs, oc, spacing)
+	_glyphs(ci, f, base, s, fs, col, spacing)
+	var rect := Rect2(x, y, w, h)
 	if not opts.get("no_audit", false):
-		_record(r, s)
-	return r
+		_record(rect, s)
+	return rect
 
 
-static func _glyphs(ci: CanvasItem, f: Font, base: Vector2, s: String, sz: int, col: Color, spacing: float, outline: int, _oc: Color) -> void:
+static func _glyphs(ci: CanvasItem, f: Font, base: Vector2, s: String, sz: int, col: Color, spacing: float) -> void:
 	if spacing == 0.0:
-		if outline > 0:
-			ci.draw_string_outline(f, base, s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, outline, col)
-		else:
-			ci.draw_string(f, base, s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, col)
+		ci.draw_string(f, base, s, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, col)
 		return
 	var x := base.x
 	for ch in s:
-		if outline > 0:
-			ci.draw_string_outline(f, Vector2(x, base.y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, outline, col)
-		else:
-			ci.draw_string(f, Vector2(x, base.y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, col)
+		ci.draw_string(f, Vector2(roundf(x), base.y), ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz, col)
 		x += f.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, sz).x + spacing
 
 
@@ -261,9 +270,9 @@ static func _box(key: String, bg: Color, border: Color, radius: int, bw: int = 1
 	sb.border_color = border
 	sb.set_border_width_all(bw)
 	sb.set_corner_radius_all(radius)
-	sb.anti_aliasing = true
+	sb.anti_aliasing = false
 	sb.anti_aliasing_size = 0.4
-	sb.corner_detail = 6
+	sb.corner_detail = maxi(1, radius)
 	if shadow > 0:
 		sb.shadow_color = Color(0, 0, 0, 0.45)
 		sb.shadow_size = shadow

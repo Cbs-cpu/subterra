@@ -347,7 +347,7 @@ func _cr_row(id: String) -> Rect2:
 	return Rect2(CR_FORM.position.x + 8, CR_FORM.position.y + 26 + k * 19.5, CR_FORM.size.x - 16, 16)
 
 func _cr_ctrl(row: Rect2) -> Rect2:
-	return Rect2(row.position.x + 50, row.position.y, row.size.x - 50, row.size.y)
+	return Rect2(row.position.x + 58, row.position.y, row.size.x - 58, row.size.y)
 
 func _cr_arrow(row: Rect2, dir: int) -> Rect2:
 	var c := _cr_ctrl(row)
@@ -430,8 +430,8 @@ func _draw_logo_fill() -> void:
 	var r := UiKit.text(logo_fill, Vector2(240, LOGO_Y), LOGO, LOGO_SIZE, Color.WHITE, 1, _logo_opts({"no_audit": false}))
 	var f := UiKit.font("display")
 	var mat: ShaderMaterial = logo_fill.material
-	var base := r.position.y + f.get_ascent(LOGO_SIZE)
-	mat.set_shader_parameter("y_top", base - f.get_ascent(LOGO_SIZE) * 0.72)
+	var base := r.position.y + f.get_ascent(UiKit.px(LOGO_SIZE))
+	mat.set_shader_parameter("y_top", base - f.get_ascent(UiKit.px(LOGO_SIZE)) * 0.72)
 	mat.set_shader_parameter("y_bot", base)
 	mat.set_shader_parameter("shine_x", lerpf(r.position.x - 80.0, r.end.x + 160.0, fmod(t * 0.22, 1.0)))
 
@@ -517,7 +517,7 @@ func _draw_create() -> void:
 		if hov:
 			c_focus = id
 		var ly := row.position.y + (row.size.y - UiKit.line_h(UiKit.S)) / 2.0
-		UiKit.text(c, Vector2(row.position.x, ly), CR_LABELS[id], UiKit.S, UiKit.YELLOW if c_focus == id else UiKit.TEXT_DIM, 0, {"max_w": 46})
+		UiKit.text(c, Vector2(row.position.x, ly), CR_LABELS[id], UiKit.S, UiKit.YELLOW if c_focus == id else UiKit.TEXT_DIM, 0, {"max_w": 56})
 		match id:
 			"nombre", "semilla":
 				var val: String = c_name if id == "nombre" else (c_seed if c_seed != "" else "aleatoria")

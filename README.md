@@ -19,8 +19,8 @@ Tala, mina, combina objetos de dos en dos, baja 20 distritos eligiendo bioma en 
 - **Desbloqueos permanentes** evaluados al terminar la partida, más estadísticas globales, libro de recetas y guardado en el pueblo.
 - **Modos Normal y Demente.** Cooperativo online por IP (ENet, anfitrión autoritativo).
 - **Movimiento:** aceleración, tiempo de coyote, búfer de salto, salto variable, doble salto, dash con invulnerabilidad e interpolación de física.
-- **Presentación estilo Magicite:** personajes chibi animados, penumbra con luces 2D, terreno denso con musgo, decoración de fondo, estelas brillantes y música chiptune por bioma.
-- **Interfaz en alta resolución** con paleta verde y amarilla: portada vectorial animada, menús y HUD con texto nítido que nunca se solapa. El mundo sigue siendo pixel art de píxel uniforme (se dibuja a 480x270 en un SubViewport y se amplía en múltiplos enteros).
+- **Presentación estilo Magicite:** personajes chibi rechonchos y de pocos píxeles (cabeza ancha, barriga y piernas cortas), penumbra con luces 2D, terreno denso con musgo, decoración de fondo, estelas brillantes y música chiptune por bioma.
+- **Interfaz** con paleta verde y amarilla y **fuente pixelada gruesa propia** con sombra dura (`assets/fonts/subterra_pixel.ttf`, generada por `tools/make_font.py`): portada animada, menús y HUD con texto que nunca se solapa. El mundo sigue siendo pixel art de píxel uniforme (se dibuja a 480x270 en un SubViewport y se amplía en múltiplos enteros).
 
 ## Jugar
 
@@ -54,6 +54,8 @@ En *Cooperativo*, uno pulsa **Crear partida** (puerto 7777) y los demás escribe
 "C:/Users/Cobos/Desktop/Godot_v4.6.3-stable_win64_console.exe" --headless --path . -s res://tests/run_tests.gd
 # Compilar todos los scripts
 "C:/Users/Cobos/Desktop/Godot_v4.6.3-stable_win64_console.exe" --headless --path . -s res://tools/check.gd
+# Regenerar la fuente pixelada (requiere fonttools)
+python tools/make_font.py
 # Exportar todo el arte a PNG (art_export/)
 "C:/Users/Cobos/Desktop/Godot_v4.6.3-stable_win64_console.exe" --headless --path . -s res://tools/export_art.gd
 ```

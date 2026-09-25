@@ -549,7 +549,7 @@ func _draw_hud(h: Hero, full: bool) -> void:
 	UiKit.bar(c, Rect2(98, 29.5, 40, 3), m.stamina / m.max_stamina(), UiKit.YELLOW)
 	c.draw_texture_rect(Art.coin_icon(), Rect2(33, 36.5, 8, 8), false)
 	UiKit.text(c, Vector2(44, 40.5 - UiKit.line_h(UiKit.S, "bold") / 2.0), str(m.coins), UiKit.S, UiKit.YELLOW, 0, {"kind": "bold", "max_w": 60})
-	UiKit.text(c, Vector2(138, 40.5 - UiKit.line_h(UiKit.XS) / 2.0), "%d / %d exp" % [m.xp, need], UiKit.XS, UiKit.TEXT_MUTE, 2, {"max_w": 50})
+	UiKit.text(c, Vector2(138, 40.5 - UiKit.line_h(UiKit.XS) / 2.0), "%d/%d exp" % [m.xp, need], UiKit.XS, UiKit.TEXT_MUTE, 2, {"max_w": 60})
 	# --- Arriba a la derecha: lugar y temporizador de la Ceniza.
 	var w: World = run.world
 	var place: String = "Pueblo" if w.is_town else Content.biome(w.biome)["name"]
@@ -955,8 +955,9 @@ func _draw_inventory() -> void:
 	for tr in m.traits:
 		var td: Dictionary = Content.find(Content.TRAITS, tr)
 		var nr := UiKit.text(c, Vector2(INV_PANEL.position.x + 12, ty), td["name"], UiKit.S, UiKit.LIME, 0, {"kind": "bold", "max_w": 70})
-		UiKit.text(c, Vector2(nr.end.x + 5, ty), td.get("desc", ""), UiKit.S, UiKit.TEXT_DIM, 0, {"max_w": INV_PANEL.position.x + 12 + lw - nr.end.x - 5, "min_size": UiKit.XS})
-		ty += UiKit.line_h(UiKit.S) + 2.0
+		# La descripción va debajo del nombre y se parte en líneas (la fuente pixelada es ancha).
+		ty += UiKit.line_h(UiKit.S)
+		ty += UiKit.paragraph(c, Rect2(INV_PANEL.position.x + 18, ty, lw - 6, (UiKit.line_h(UiKit.S) + 1.5) * 2.0), td.get("desc", ""), UiKit.S, UiKit.TEXT_DIM) + 3.0
 	# Estado del crafteo.
 	var cy := INV_PANEL.end.y - 20.0
 	if craft_a >= 0 and m.inv.slots[craft_a] != null:

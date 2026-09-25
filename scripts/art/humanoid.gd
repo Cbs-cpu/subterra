@@ -2,8 +2,8 @@ class_name Humanoid
 extends RefCounted
 ## Generador de personajes humanoides por "marioneta": piernas, brazos, torso y cabeza con
 ## animaciones completas (reposo 4, correr 6, salto, caída, ataque 3, daño, dash, abatido).
-## Proporciones chibi: cabeza grande y cuerpo pequeño. Lienzo de 14x18 mirando a la derecha;
-## los pies en y=17.
+## Proporciones chibi rechonchas: cabeza ancha de 10x7, barriga de 8x4 y piernas cortas de
+## 3 px. Pocos píxeles y formas grandes. Lienzo de 14x18 mirando a la derecha; los pies en y=17.
 
 const W := 14
 const H := 18
@@ -110,57 +110,62 @@ static func build(look: Dictionary, anim: String, i: int) -> Dictionary:
 		boots = sk[0]
 	var bob: int = p["bob"]
 	var lean: int = p["lean"]
-	var hip := Vector2i(7 + lean / 2, 12 + bob)
-	var shoulder := Vector2i(7 + lean, 9 + bob)
+	var hip := Vector2i(7 + lean / 2, 14 + bob)
+	var shoulder := Vector2i(7 + lean, 11 + bob)
 
 	# Brazo trasero.
-	_arm(c, shoulder + Vector2i(-1, 0), p["ba"], cl[0], sk[0])
+	_arm(c, shoulder + Vector2i(-2, 0), p["ba"], cl[0], sk[0])
 	# Piernas.
 	if body == "flotante":
-		for k in 5:
-			var wv := 3 - k / 2
-			c.rect(6 - wv / 2 + roundi(sin(anim.hash() + i + k) * 0.8), hip.y + k, maxi(1, wv), 1, cl[1] if k % 2 == 0 else cl[2])
+		for k in 4:
+			var wv := 4 - k
+			c.rect(7 - wv / 2 + roundi(sin(anim.hash() + i + k) * 0.8), hip.y + k, maxi(1, wv), 1, cl[1] if k % 2 == 0 else cl[2])
 	elif body == "tunica":
-		c.rect(4 + lean / 2, hip.y - 1, 6, 4, cl[1])
-		c.rect(3 + lean / 2, hip.y + 3, 8, 2, cl[0])
-		c.rect(5 + p["fl"].x / 2, 17, 2, 1, boots)
+		c.rect(3 + lean / 2, hip.y - 1, 8, 3, cl[1])
+		c.rect(2 + lean / 2, hip.y + 2, 10, 1, cl[0])
+		c.rect(5 + p["fl"].x / 2, 17, 4, 1, boots)
 	else:
-		_leg(c, hip + Vector2i(-1, 0), p["bl"], pants.darkened(0.2), boots)
+		_leg(c, hip + Vector2i(-2, 0), p["bl"], pants.darkened(0.2), boots)
 		_leg(c, hip + Vector2i(1, 0), p["fl"], pants, boots)
-	# Torso.
-	var tx := 4 + lean
-	var ty := 8 + bob
-	c.rect(tx, ty, 6, 5, cl[1])
-	c.rect(tx, ty, 6, 1, cl[2])
-	c.rect(tx + 4, ty + 1, 2, 4, cl[0])
-	c.rect(tx, ty + 4, 6, 1, cl[0].darkened(0.3))
+	# Torso: barriga ancha con esquinas redondeadas.
+	var tx := 3 + lean
+	var ty := 10 + bob
+	c.rect(tx, ty, 8, 4, cl[1])
+	c.rect(tx + 1, ty, 6, 1, cl[2])
+	c.rect(tx + 6, ty + 1, 2, 2, cl[0])
+	c.rect(tx, ty + 3, 8, 1, cl[0].darkened(0.3))
+	c.px(tx + 3, ty + 3, Color("#c0901e"))
+	c.px(tx, ty + 3, Color(0, 0, 0, 0))
+	c.px(tx + 7, ty + 3, Color(0, 0, 0, 0))
 	if body == "esqueleto":
-		c.rect(tx, ty, 6, 5, Color(0, 0, 0, 0))
-		for k in 3:
-			c.rect(tx, ty + k * 2, 6, 1, sk[2])
-		c.rect(tx + 2, ty, 1, 5, sk[1])
+		c.rect(tx, ty, 8, 4, Color(0, 0, 0, 0))
+		for k in 2:
+			c.rect(tx + 1, ty + k * 2, 6, 1, sk[2])
+		c.rect(tx + 3, ty, 2, 4, sk[1])
 	# Cabeza.
-	var hx := 3 + lean
-	var hy := 1 + bob + int(p["hy"])
+	var hx := 2 + lean
+	var hy := 3 + bob + int(p["hy"])
 	_head(c, hx, hy, head, sk, hair, cl, look)
 	# Brazo delantero (por encima).
-	var hand := _arm(c, shoulder + Vector2i(1, 0), p["fa"], cl[2], sk[1])
+	var hand := _arm(c, shoulder + Vector2i(2, 0), p["fa"], cl[2], sk[1])
 	c.outline()
-	return {"tex": c.tex(), "hand": hand, "head": Vector2i(hx + 4, hy)}
+	return {"tex": c.tex(), "hand": hand, "head": Vector2i(hx + 5, hy)}
 
 
 static func _leg(c: Pix, hip: Vector2i, off: Vector2i, col: Color, boot: Color) -> void:
-	var foot := Vector2i(hip.x + off.x, 17 - off.y)
-	c.line(hip.x, hip.y, foot.x, foot.y - 1, col, 1)
-	c.px(hip.x + 1, hip.y, col)
-	c.rect(foot.x, foot.y, 2, 1, boot)
+	# Piernas cortas de 2 px de ancho con bota de 3.
+	var foot := Vector2i(hip.x + off.x / 2, 17 - mini(off.y, 1))
+	c.rect(mini(hip.x, foot.x), hip.y, 2 + absi(foot.x - hip.x), maxi(1, foot.y - hip.y), col)
+	c.rect(foot.x, foot.y, 3, 1, boot)
 
 
-## Dibuja un brazo con el ángulo dado (0 = hacia abajo, positivo = hacia delante). Devuelve la mano.
+## Dibuja un brazo corto y gordo con el ángulo dado (0 = hacia abajo, positivo = hacia
+## delante). Devuelve la mano.
 static func _arm(c: Pix, sh: Vector2i, ang: float, sleeve: Color, skin: Color) -> Vector2i:
-	var hand := Vector2i(sh.x + roundi(sin(ang) * 3.0), sh.y + roundi(cos(ang) * 3.0))
+	var hand := Vector2i(sh.x + roundi(sin(ang) * 2.5), sh.y + roundi(cos(ang) * 2.5))
 	c.line(sh.x, sh.y, hand.x, hand.y, sleeve, 1)
-	c.px(hand.x, hand.y, skin)
+	c.line(sh.x + 1, sh.y, hand.x + 1, hand.y, sleeve, 1)
+	c.rect(hand.x, hand.y, 2, 1, skin)
 	return hand
 
 
@@ -187,21 +192,25 @@ static func _head(c: Pix, x: int, y: int, kind: String, sk: Array, hair: Color, 
 			c.rect(x + 1, y - 3, 2, 3, Color("#3aa04a"))
 			c.rect(x + 5, y - 3, 2, 3, Color("#e0c03a"))
 			return
-	# Cabeza base (grande, estilo chibi).
-	c.rect(x, y, 9, 7, sk[1])
-	c.rect(x + 1, y, 7, 1, sk[2])
-	c.rect(x + 7, y + 1, 2, 5, sk[2])
-	c.rect(x, y + 6, 9, 1, sk[0])
-	c.px(x, y, Color(0, 0, 0, 0))
-	# Ojo mirando a la derecha.
+	# Cabeza base: ancha y redonda (10x7), estilo chibi rechoncho.
+	c.rect(x, y, 10, 7, sk[1])
+	c.rect(x + 1, y, 8, 1, sk[2])
+	c.rect(x + 8, y + 1, 2, 4, sk[2])
+	c.rect(x + 1, y + 6, 8, 1, sk[0])
+	for cp in [Vector2i(0, 0), Vector2i(9, 0), Vector2i(0, 6), Vector2i(9, 6)]:
+		c.px(x + cp.x, y + cp.y, Color(0, 0, 0, 0))
+	# Ojo grande mirando a la derecha y mejilla.
 	if kind != "ciclope" and kind != "yelmo":
-		c.rect(x + 6, y + 3, 1, 2, eye)
+		c.rect(x + 6, y + 3, 2, 2, eye)
 		c.px(x + 7, y + 3, Color(1, 1, 1, 0.9) if kind != "esqueleto" else eye)
+		if kind != "esqueleto":
+			c.px(x + 8, y + 5, sk[1].lerp(Color("#e05a5a"), 0.45))
 	# Pelo (arriba y nuca).
 	if kind in ["normal", "orejas", "cicatriz", "runas", "antifaz", "corona", "ciclope"]:
-		c.rect(x, y - 1, 9, 2, hair)
-		c.rect(x - 1, y, 2, 5, hair)
-		c.px(x + 8, y, hair)
+		c.rect(x + 1, y - 1, 8, 1, hair)
+		c.rect(x, y, 10, 2, hair)
+		c.rect(x - 1, y + 1, 3, 4, hair)
+		c.px(x + 5, y + 2, hair)
 	match kind:
 		"orejas":
 			c.px(x - 2, y + 2, sk[1])
