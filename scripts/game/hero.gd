@@ -506,23 +506,26 @@ func rig_state() -> Array:
 	if downed or dead:
 		return ["down", 0.0]
 	if dash_t > 0.0:
-		return ["dash", fmod(anim_t, 0.25)]
+		return ["dash", fmod(anim_t, 0.2)]
 	if attack_t > 0.0:
 		return ["attack", (1.0 - attack_t / attack_len) * 0.3]
 	if hurt_t > 0.0:
 		return ["hurt", clampf(0.25 - hurt_t, 0.0, 0.25)]
 	if not on_floor and use_gravity:
-		return ["jump" if vel.y < 0.0 else "fall", clampf(absf(vel.y) / 300.0, 0.0, 1.0) * 0.3]
+		if vel.y < 0.0:
+			# Del despegue (estirado) a la cima (recogido) según lo que queda de subida.
+			return ["jump", (1.0 - clampf(-vel.y / JUMP_V, 0.0, 1.0)) * 0.4]
+		return ["fall", clampf(vel.y / 400.0, 0.0, 1.0) * 0.4]
 	if absf(vel.x) > 12.0:
 		# Una zancada completa cada ~48 px.
 		return ["run", fmod(run_dist / 48.0, 1.0) * 0.48]
-	return ["idle", fmod(anim_t, 1.2)]
+	return ["idle", fmod(anim_t, 1.4)]
 
 
 ## Transformación de una pieza respecto a los pies del héroe.
 func _rig_tr(part: String) -> Transform2D:
 	var root: Node2D = rig.get_node("Root")
-	return root.transform * (root.get_node(part) as Node2D).transform
+	return RigPose.pixel_tr(root.transform * (root.get_node(part) as Node2D).transform)
 
 
 func _draw_rig(base_tr: Transform2D, col: Color) -> void:
@@ -533,8 +536,9 @@ func _draw_rig(base_tr: Transform2D, col: Color) -> void:
 	var root: Node2D = rig.get_node("Root")
 	for n in RIG_ORDER:
 		var s: Sprite2D = root.get_node(n)
-		var t := base_tr * root.transform * s.transform
+		var t := RigPose.pixel_tr(root.transform * s.transform)
 		t.origin = t.origin.round()
+		t = base_tr * t
 		draw_set_transform_matrix(t)
 		draw_texture(s.texture, s.offset, col)
 	draw_set_transform_matrix(base_tr)

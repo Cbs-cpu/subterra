@@ -1,13 +1,18 @@
 class_name Humanoid
 extends RefCounted
-## Generador de personajes humanoides por "marioneta": piernas, brazos, torso y cabeza con
-## animaciones completas (reposo 4, correr 6, salto, caída, ataque 3, daño, dash, abatido).
-## Proporciones chibi rechonchas: cabeza ancha de 10x7, barriga de 8x4 y piernas cortas de
-## 3 px. Pocos píxeles y formas grandes. Lienzo de 14x18 mirando a la derecha; los pies en y=17.
+## Humanoides por piezas (otras razas, vecinos, tenderos y enemigos con forma de persona),
+## con la misma estética que el Minero: cabeza cuadrada de 6x6, torso de 6x4, manos de 2x2
+## flotantes y botitas, todo con contorno negro. Las piezas se montan con las poses del
+## esqueleto de scenes/pj_rig.tscn (RigPose), así que se mueven igual que el protagonista.
+## Lienzo de 24x24 mirando a la derecha; los pies en ORIGIN.
 
-const W := 14
-const H := 18
-const ANIMS := {"idle": 4, "run": 6, "jump": 1, "fall": 1, "attack": 3, "hurt": 1, "dash": 1, "down": 1}
+const W := 24
+const H := 24
+const ORIGIN := Vector2i(12, 24)
+## Fotogramas que se sacan de cada animación del esqueleto.
+const ANIMS := {"idle": 6, "run": 8, "jump": 2, "fall": 2, "attack": 4, "hurt": 2, "dash": 2, "down": 1}
+## Pivote de cada pieza dentro de su lienzo (offset = -pivote).
+const OFFSET := {"cabeza": Vector2(-8, -12), "mano": Vector2(-3, -3), "pie": Vector2(-3, -5)}
 
 const SKINS := {
 	"piel_clara": ["#b0704a", "#e0a070", "#f8cc98"], "piel_morena": ["#6a3a1e", "#9a5a30", "#c8844a"],
@@ -37,276 +42,301 @@ const HAIRS := {
 	"pelo_gris": "#8a8a94", "pelo_rosa": "#e07a8a", "pelo_musgo": "#4a7a2a", "plumas": "#c07a2a",
 }
 
-## Parámetros de pose por animación y fotograma.
-static func pose(anim: String, i: int) -> Dictionary:
-	var p := {"bob": 0, "fl": Vector2i(0, 0), "bl": Vector2i(0, 0), "fa": 0.3, "ba": -0.3, "lean": 0, "hy": 0}
-	match anim:
-		"idle":
-			p["bob"] = 1 if i >= 2 else 0
-			p["fa"] = 0.15
-			p["ba"] = -0.15
-		"run":
-			var ph := i / 6.0 * TAU
-			p["fl"] = Vector2i(roundi(sin(ph) * 2.0), roundi(maxf(0.0, cos(ph)) * 1.5))
-			p["bl"] = Vector2i(roundi(-sin(ph) * 2.0), roundi(maxf(0.0, -cos(ph)) * 1.5))
-			p["fa"] = -sin(ph) * 1.0
-			p["ba"] = sin(ph) * 1.0
-			p["bob"] = -1 if abs(sin(ph)) < 0.6 else 0
-			p["lean"] = 0
-		"jump":
-			p["fl"] = Vector2i(1, 2)
-			p["bl"] = Vector2i(-1, 1)
-			p["fa"] = 2.5
-			p["ba"] = 2.0
-			p["bob"] = -1
-		"fall":
-			p["fl"] = Vector2i(1, 0)
-			p["bl"] = Vector2i(-1, 1)
-			p["fa"] = 1.4
-			p["ba"] = -1.4
-		"attack":
-			p["fa"] = [2.8, 1.6, 0.5][clampi(i, 0, 2)]
-			p["ba"] = -0.5
-			p["fl"] = Vector2i(1, 0)
-			p["bl"] = Vector2i(-1, 0)
-			p["lean"] = [0, 1, 1][clampi(i, 0, 2)]
-		"hurt":
-			p["fa"] = 2.0
-			p["ba"] = 2.2
-			p["lean"] = -1
-			p["hy"] = 1
-		"dash":
-			p["fl"] = Vector2i(-2, 1)
-			p["bl"] = Vector2i(-3, 1)
-			p["fa"] = -1.4
-			p["ba"] = -1.2
-			p["lean"] = 2
-		"down":
-			p["fl"] = Vector2i(0, 0)
-			p["bl"] = Vector2i(0, 0)
-	return p
-
-
 static func _col(set: Dictionary, name: String, i: int, fallback: Dictionary) -> Color:
 	var arr: Array = set.get(name, fallback.values()[0])
 	return Color(arr[clampi(i, 0, arr.size() - 1)])
 
 
-## look: {skin, hair, cloth, head, body}. body: "normal", "esqueleto", "tunica", "flotante".
+## Fotograma completo: se montan las piezas del aspecto con la pose de la animación del
+## esqueleto en ese instante. Devuelve {tex, hand, head, origin}.
 static func build(look: Dictionary, anim: String, i: int) -> Dictionary:
-	var c := Pix.new(W, H)
-	var p := pose(anim, i)
+	var n: int = ANIMS.get(anim, 1)
+	var alen = RigPose.length(anim)
+	var time = alen * float(i) / float(n)
+	if n == 1:
+		time = alen * 0.5
+	var pose = RigPose.pose(anim, time)
+	var parts := parts_for(look)
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	var o := Vector2(ORIGIN)
+	var body: String = look.get("body", "normal")
+	for pn in RigPose.PARTS:
+		if pn.begins_with("Pie") and body in ["tunica", "flotante"]:
+			continue
+		var kind: String = {"PieB": "pie", "PieF": "pie", "ManoB": "mano", "ManoF": "mano", "Torso": "torso", "Cabeza": "cabeza"}[pn]
+		var part: Image = parts[kind]
+		var tr: Transform2D = pose[pn]
+		tr.origin = (tr.origin + o).round()
+		var off: Vector2 = Vector2(parts["torso_off"]) if kind == "torso" else OFFSET[kind]
+		_blit(img, part, tr * Transform2D(0.0, off))
+	var hand: Transform2D = pose["ManoF"]
+	var head: Transform2D = pose["Cabeza"]
+	return {"tex": ImageTexture.create_from_image(img), "hand": Vector2i((hand.origin + o).round()),
+		"head": Vector2i((head * Vector2(0, -7) + o).round()), "origin": ORIGIN}
+
+
+## Copia `src` en `dst` con la transformación dada (vecino más cercano, sin mezclar bordes).
+static func _blit(dst: Image, src: Image, tr: Transform2D) -> void:
+	var sw := src.get_width()
+	var sh := src.get_height()
+	if is_zero_approx(tr.get_rotation()) and tr.get_scale().is_equal_approx(Vector2.ONE):
+		dst.blend_rect(src, Rect2i(0, 0, sw, sh), Vector2i(tr.origin.round()))
+		return
+	var inv := tr.affine_inverse()
+	var corners := [tr * Vector2(0, 0), tr * Vector2(sw, 0), tr * Vector2(0, sh), tr * Vector2(sw, sh)]
+	var mn: Vector2 = corners[0]
+	var mx: Vector2 = corners[0]
+	for c in corners:
+		mn = mn.min(c)
+		mx = mx.max(c)
+	for y in range(maxi(0, int(floor(mn.y))), mini(dst.get_height(), int(ceil(mx.y)) + 1)):
+		for x in range(maxi(0, int(floor(mn.x))), mini(dst.get_width(), int(ceil(mx.x)) + 1)):
+			var sp := inv * Vector2(x + 0.5, y + 0.5)
+			var sx := int(floor(sp.x))
+			var sy := int(floor(sp.y))
+			if sx >= 0 and sy >= 0 and sx < sw and sy < sh:
+				var c2 := src.get_pixel(sx, sy)
+				if c2.a > 0.0:
+					dst.set_pixel(x, y, c2)
+
+
+static var _parts := {}
+
+
+## Piezas (Image) de un aspecto: cabeza, torso, mano y pie, con contorno negro.
+static func parts_for(look: Dictionary) -> Dictionary:
+	var key := str(look)
+	if _parts.has(key):
+		return _parts[key]
 	var skin_n: String = look.get("skin", "piel_clara")
 	var cloth_n: String = look.get("cloth", "ropa_marron")
-	var head: String = look.get("head", "normal")
-	var body: String = look.get("body", "normal")
 	var sk := [_col(SKINS, skin_n, 0, SKINS), _col(SKINS, skin_n, 1, SKINS), _col(SKINS, skin_n, 2, SKINS)]
 	var cl := [_col(CLOTHS, cloth_n, 0, CLOTHS), _col(CLOTHS, cloth_n, 1, CLOTHS), _col(CLOTHS, cloth_n, 2, CLOTHS)]
 	var hair := Color(HAIRS.get(look.get("hair", "pelo_castano"), "#5a3418"))
-	var pants: Color = cl[0].darkened(0.25)
-	var boots := Color("#2a1a14")
-	if body == "esqueleto":
-		pants = sk[1]
-		boots = sk[0]
-	var bob: int = p["bob"]
-	var lean: int = p["lean"]
-	var hip := Vector2i(7 + lean / 2, 14 + bob)
-	var shoulder := Vector2i(7 + lean, 11 + bob)
-
-	# Brazo trasero.
-	_arm(c, shoulder + Vector2i(-2, 0), p["ba"], cl[0], sk[0])
-	# Piernas.
-	if body == "flotante":
-		for k in 4:
-			var wv := 4 - k
-			c.rect(7 - wv / 2 + roundi(sin(anim.hash() + i + k) * 0.8), hip.y + k, maxi(1, wv), 1, cl[1] if k % 2 == 0 else cl[2])
-	elif body == "tunica":
-		c.rect(3 + lean / 2, hip.y - 1, 8, 3, cl[1])
-		c.rect(2 + lean / 2, hip.y + 2, 10, 1, cl[0])
-		c.rect(5 + p["fl"].x / 2, 17, 4, 1, boots)
-	else:
-		_leg(c, hip + Vector2i(-2, 0), p["bl"], pants.darkened(0.2), boots)
-		_leg(c, hip + Vector2i(1, 0), p["fl"], pants, boots)
-	# Torso: barriga ancha con esquinas redondeadas.
-	var tx := 3 + lean
-	var ty := 10 + bob
-	c.rect(tx, ty, 8, 4, cl[1])
-	c.rect(tx + 1, ty, 6, 1, cl[2])
-	c.rect(tx + 6, ty + 1, 2, 2, cl[0])
-	c.rect(tx, ty + 3, 8, 1, cl[0].darkened(0.3))
-	c.px(tx + 3, ty + 3, Color("#c0901e"))
-	c.px(tx, ty + 3, Color(0, 0, 0, 0))
-	c.px(tx + 7, ty + 3, Color(0, 0, 0, 0))
-	if body == "esqueleto":
-		c.rect(tx, ty, 8, 4, Color(0, 0, 0, 0))
-		for k in 2:
-			c.rect(tx + 1, ty + k * 2, 6, 1, sk[2])
-		c.rect(tx + 3, ty, 2, 4, sk[1])
-	# Cabeza.
-	var hx := 2 + lean
-	var hy := 3 + bob + int(p["hy"])
-	_head(c, hx, hy, head, sk, hair, cl, look)
-	# Brazo delantero (por encima).
-	var hand := _arm(c, shoulder + Vector2i(2, 0), p["fa"], cl[2], sk[1])
-	c.outline()
-	return {"tex": c.tex(), "hand": hand, "head": Vector2i(hx + 5, hy)}
+	var body: String = look.get("body", "normal")
+	var out := {}
+	out["cabeza"] = _head_img(look.get("head", "normal"), sk, hair, cl, look)
+	var t := _torso_img(body, sk, cl)
+	out["torso"] = t[0]
+	out["torso_off"] = t[1]
+	# Mano: cuadradito de piel de 2x2 (hueso en los esqueletos).
+	var m := Pix.new(6, 6)
+	m.rect(2, 2, 2, 2, sk[2])
+	m.px(2, 3, sk[1])
+	m.ink()
+	out["mano"] = m.img
+	# Pie: botita con la punta hacia delante.
+	var boot = Color("#3a2618") if body != "esqueleto" else sk[1]
+	var boot_hi = boot.lightened(0.25)
+	var f := Pix.new(7, 6)
+	f.rect(2, 2, 2, 2, boot)
+	f.px(3, 2, boot_hi)
+	f.px(4, 3, boot_hi)
+	f.ink()
+	out["pie"] = f.img
+	_parts[key] = out
+	return out
 
 
-static func _leg(c: Pix, hip: Vector2i, off: Vector2i, col: Color, boot: Color) -> void:
-	# Piernas cortas de 2 px de ancho con bota de 3.
-	var foot := Vector2i(hip.x + off.x / 2, 17 - mini(off.y, 1))
-	c.rect(mini(hip.x, foot.x), hip.y, 2 + absi(foot.x - hip.x), maxi(1, foot.y - hip.y), col)
-	c.rect(foot.x, foot.y, 3, 1, boot)
+## Torso de 6x4 por dentro (camisa, cinturón y pantalón) o sus variantes. Devuelve
+## [imagen, offset del pivote de la cadera].
+static func _torso_img(body: String, sk: Array, cl: Array) -> Array:
+	match body:
+		"tunica":
+			# Túnica que baja hasta el suelo y tapa los pies.
+			var c := Pix.new(12, 10)
+			c.rect(3, 2, 6, 6, cl[1])
+			c.rect(2, 6, 8, 2, cl[1])
+			c.rect(3, 2, 1, 6, cl[0])
+			c.rect(7, 2, 2, 4, cl[2])
+			c.rect(2, 7, 8, 1, cl[0])
+			c.rect(5, 3, 2, 1, Color("#f0c040"))
+			c.ink()
+			return [c.img, Vector2i(-6, -7)]
+		"flotante":
+			# Sin piernas: una estela que se estrecha.
+			var c2 := Pix.new(12, 12)
+			c2.rect(3, 2, 6, 3, cl[1])
+			c2.rect(7, 2, 2, 2, cl[2])
+			c2.rect(3, 2, 1, 3, cl[0])
+			c2.rect(4, 5, 4, 2, cl[1])
+			c2.rect(5, 7, 2, 1, cl[2])
+			c2.px(6, 8, cl[2])
+			c2.ink()
+			return [c2.img, Vector2i(-6, -7)]
+		"esqueleto":
+			var c3 := Pix.new(12, 10)
+			c3.rect(3, 2, 6, 1, sk[2])
+			c3.rect(3, 4, 6, 1, sk[2])
+			c3.rect(5, 2, 2, 4, sk[1])
+			c3.rect(4, 5, 4, 1, sk[1])
+			c3.ink()
+			return [c3.img, Vector2i(-6, -7)]
+	var c4 := Pix.new(12, 10)
+	c4.rect(3, 2, 6, 2, cl[1])
+	c4.rect(3, 2, 1, 2, cl[0])
+	c4.rect(7, 2, 2, 2, cl[2])
+	c4.rect(3, 4, 6, 1, Color("#3a281c"))
+	c4.rect(5, 4, 2, 1, Color("#aab0b8"))
+	c4.rect(3, 5, 6, 1, cl[0].darkened(0.35))
+	c4.ink()
+	return [c4.img, Vector2i(-6, -7)]
 
 
-## Dibuja un brazo corto y gordo con el ángulo dado (0 = hacia abajo, positivo = hacia
-## delante). Devuelve la mano.
-static func _arm(c: Pix, sh: Vector2i, ang: float, sleeve: Color, skin: Color) -> Vector2i:
-	var hand := Vector2i(sh.x + roundi(sin(ang) * 2.5), sh.y + roundi(cos(ang) * 2.5))
-	c.line(sh.x, sh.y, hand.x, hand.y, sleeve, 1)
-	c.line(sh.x + 1, sh.y, hand.x + 1, hand.y, sleeve, 1)
-	c.rect(hand.x, hand.y, 2, 1, skin)
-	return hand
-
-
-static func _head(c: Pix, x: int, y: int, kind: String, sk: Array, hair: Color, cl: Array, look: Dictionary) -> void:
-	var eye := Color(look.get("eye", "#1a1320"))
+## Cabeza cuadrada de 6x6 por dentro (como la del Minero) con sus variantes.
+## Lienzo de 16x14: el bloque va de (5,6) a (10,11) y el cuello queda en (8,12).
+static func _head_img(kind: String, sk: Array, hair: Color, cl: Array, look: Dictionary) -> Image:
+	var c := Pix.new(16, 14)
+	var x := 5
+	var y := 6
+	var eye := Color(look.get("eye", "#0e0a0a"))
+	var face: Color = sk[2]
+	var shade: Color = sk[1]
+	var gold := Color("#f0b93a")
 	match kind:
 		"seta":
-			# Sombrero de seta en lugar de cabeza.
-			c.rect(x + 2, y + 4, 5, 4, Color("#f0e0c8"))
-			c.px(x + 5, y + 5, eye)
-			c.ellipse(x + 4.5, y + 3, 7, 3.5, Color("#c0302a"))
-			c.rect(x - 1, y + 3, 11, 1, Color("#8a1a1a"))
-			for d in [Vector2i(1, 1), Vector2i(5, 0), Vector2i(8, 2), Vector2i(3, 3)]:
-				c.px(x + d.x, y + d.y, Color.WHITE)
-			return
-		"tiki":
-			c.rect(x - 1, y - 1, 10, 10, Color("#8a5a30"))
-			c.rect(x, y, 8, 8, Color("#b8844a"))
-			c.rect(x + 1, y + 2, 2, 2, Color.WHITE)
-			c.rect(x + 5, y + 2, 2, 2, Color.WHITE)
+			c.rect(x + 1, y + 2, 4, 4, Color("#f0e0c8"))
 			c.px(x + 2, y + 3, eye)
-			c.px(x + 6, y + 3, eye)
-			c.rect(x + 2, y + 6, 5, 1, Color("#c0302a"))
-			c.rect(x + 1, y - 3, 2, 3, Color("#3aa04a"))
-			c.rect(x + 5, y - 3, 2, 3, Color("#e0c03a"))
-			return
-	# Cabeza base: ancha y redonda (10x7), estilo chibi rechoncho.
-	c.rect(x, y, 10, 7, sk[1])
-	c.rect(x + 1, y, 8, 1, sk[2])
-	c.rect(x + 8, y + 1, 2, 4, sk[2])
-	c.rect(x + 1, y + 6, 8, 1, sk[0])
-	for cp in [Vector2i(0, 0), Vector2i(9, 0), Vector2i(0, 6), Vector2i(9, 6)]:
-		c.px(x + cp.x, y + cp.y, Color(0, 0, 0, 0))
-	# Ojo grande mirando a la derecha y mejilla.
-	if kind != "ciclope" and kind != "yelmo":
-		c.rect(x + 6, y + 3, 2, 2, eye)
-		c.px(x + 7, y + 3, Color(1, 1, 1, 0.9) if kind != "esqueleto" else eye)
-		if kind != "esqueleto":
-			c.px(x + 8, y + 5, sk[1].lerp(Color("#e05a5a"), 0.45))
-	# Pelo (arriba y nuca).
-	if kind in ["normal", "orejas", "cicatriz", "runas", "antifaz", "corona", "ciclope"]:
-		c.rect(x + 1, y - 1, 8, 1, hair)
-		c.rect(x, y, 10, 2, hair)
-		c.rect(x - 1, y + 1, 3, 4, hair)
-		c.px(x + 5, y + 2, hair)
+			c.px(x + 4, y + 3, eye)
+			c.ellipse(x + 3, y + 1, 5.5, 3.5, Color("#c0302a"))
+			c.rect(x - 2, y + 1, 10, 1, Color("#8a1a1a"))
+			c.rect(x, y - 2, 2, 1, Color.WHITE)
+			c.px(x + 4, y - 1, Color.WHITE)
+			c.px(x + 6, y, Color.WHITE)
+			c.ink()
+			return c.img
+		"tiki":
+			c.rect(x, y, 6, 6, Color("#b8844a"))
+			c.rect(x, y, 1, 6, Color("#8a5a30"))
+			c.rect(x + 1, y + 2, 2, 1, Color.WHITE)
+			c.rect(x + 4, y + 2, 2, 1, Color.WHITE)
+			c.px(x + 2, y + 2, eye)
+			c.px(x + 5, y + 2, eye)
+			c.rect(x + 1, y + 4, 4, 1, Color("#c0302a"))
+			c.rect(x, y - 3, 2, 3, Color("#3aa04a"))
+			c.rect(x + 4, y - 3, 2, 3, Color("#e0c03a"))
+			c.ink()
+			return c.img
+		"casco_espacial":
+			c.rect(x - 1, y - 1, 8, 8, Color("#c8c8d8"))
+			c.rect(x - 1, y - 1, 1, 8, Color("#8a8a9a"))
+			c.rect(x + 2, y + 1, 4, 4, Color("#3a8ad0"))
+			c.px(x + 4, y + 1, Color.WHITE)
+			c.ink()
+			return c.img
+		"yelmo":
+			c.rect(x, y, 6, 6, cl[1])
+			c.rect(x, y, 1, 6, cl[0])
+			c.rect(x + 4, y, 2, 2, cl[2])
+			c.rect(x + 1, y + 3, 5, 1, Color("#0e0a0a"))
+			c.rect(x + 2, y - 2, 2, 2, Color("#c0302a"))
+			c.ink()
+			return c.img
+	# Cara base.
+	c.rect(x, y, 6, 6, face)
+	c.rect(x, y, 2, 6, shade)
+	var hairy := kind in ["normal", "orejas", "cicatriz", "runas", "antifaz", "corona", "ciclope", "pico", "reina", "zombi"]
+	if hairy:
+		c.rect(x, y, 6, 2, hair)
+		c.rect(x, y + 2, 1, 1, hair)
+		c.rect(x + 4, y, 2, 1, hair.lightened(0.2))
+		if kind == "normal":
+			c.rect(x + 3, y - 1, 2, 1, hair)            # mechón
+	# Ojos (1 px) y boca.
+	if kind not in ["ciclope", "esqueleto", "antifaz"]:
+		c.px(x + 1, y + 3, eye)
+		c.px(x + 4, y + 3, eye)
+	if kind not in ["esqueleto", "hocico", "minotauro", "morsa", "yeti"]:
+		c.px(x + 3, y + 5, shade.darkened(0.25))
 	match kind:
 		"orejas":
-			c.px(x - 2, y + 2, sk[1])
-			c.px(x - 3, y + 1, sk[2])
-			c.px(x - 1, y + 3, sk[1])
+			c.rect(x - 2, y + 2, 2, 2, face)
+			c.rect(x + 6, y + 2, 1, 2, face)
 		"ciclope":
-			c.rect(x + 3, y + 2, 4, 3, Color.WHITE)
-			c.rect(x + 5, y + 3, 2, 1, eye)
+			c.rect(x + 2, y + 2, 2, 2, Color.WHITE)
+			c.px(x + 3, y + 3, eye)
 		"pico":
-			c.rect(x + 8, y + 4, 2, 2, Color("#f0a02a"))
-			c.px(x + 9, y + 5, Color("#c06a1a"))
-			c.rect(x, y - 2, 3, 2, hair)
+			c.rect(x + 6, y + 3, 2, 2, Color("#f0a02a"))
+			c.px(x + 7, y + 4, Color("#c06a1a"))
 		"hocico":
-			c.rect(x + 7, y + 4, 3, 3, Color("#f0a0b0"))
-			c.px(x + 9, y + 5, Color("#6a2a3a"))
-			c.px(x + 1, y - 1, sk[1])
-			c.px(x + 2, y - 2, sk[1])
+			c.rect(x + 4, y + 3, 3, 3, Color("#f0a0b0"))
+			c.px(x + 6, y + 4, Color("#6a2a3a"))
+			c.rect(x, y - 2, 2, 2, shade)
+			c.rect(x + 4, y - 2, 2, 2, shade)
 		"rana":
-			c.rect(x + 3, y - 2, 3, 3, sk[2])
-			c.px(x + 4, y - 1, eye)
-			c.rect(x + 3, y + 5, 5, 1, sk[0].darkened(0.3))
+			c.rect(x, y - 2, 2, 2, face)
+			c.rect(x + 4, y - 2, 2, 2, face)
+			c.px(x + 1, y - 2, eye)
+			c.px(x + 5, y - 2, eye)
+			c.rect(x + 1, y + 4, 5, 1, shade.darkened(0.3))
 		"corona":
-			c.rect(x + 1, y - 3, 6, 2, Color("#f0b93a"))
-			c.px(x + 1, y - 4, Color("#f0b93a"))
-			c.px(x + 4, y - 4, Color("#f0b93a"))
-			c.px(x + 6, y - 4, Color("#f0b93a"))
-			c.px(x + 4, y - 3, Color("#e0304a"))
+			c.rect(x, y - 2, 6, 2, gold)
+			c.px(x, y - 3, gold)
+			c.px(x + 3, y - 3, gold)
+			c.px(x + 5, y - 3, gold)
+			c.px(x + 3, y - 2, Color("#e0304a"))
 		"cuernos":
-			c.px(x + 1, y - 1, Color("#d6ccae"))
-			c.px(x, y - 2, Color("#d6ccae"))
-			c.px(x + 6, y - 1, Color("#d6ccae"))
-			c.px(x + 7, y - 2, Color("#d6ccae"))
-		"yelmo":
-			c.rect(x - 1, y - 1, 10, 9, cl[1])
-			c.rect(x - 1, y - 1, 10, 1, cl[2])
-			c.rect(x + 4, y + 3, 5, 1, Color("#1a1320"))
-			c.rect(x + 3, y - 3, 2, 2, Color("#c0302a"))
+			c.rect(x - 1, y - 2, 2, 2, Color("#d6ccae"))
+			c.rect(x + 5, y - 2, 2, 2, Color("#d6ccae"))
 		"turbante":
-			c.rect(x - 1, y - 2, 10, 4, cl[2])
-			c.rect(x - 1, y, 10, 1, cl[1])
-			c.px(x + 4, y - 1, Color("#e0304a"))
+			c.rect(x - 1, y - 2, 8, 4, cl[2])
+			c.rect(x - 1, y, 8, 1, cl[1])
+			c.px(x + 3, y - 1, Color("#e0304a"))
 		"antifaz":
-			c.rect(x + 1, y + 2, 7, 3, Color("#1a1a22"))
-			c.px(x + 5, y + 3, Color.WHITE)
+			c.rect(x, y + 3, 6, 1, Color("#1a1a22"))
+			c.px(x + 1, y + 3, Color.WHITE)
+			c.px(x + 4, y + 3, Color.WHITE)
 		"cresta":
-			for k in 4:
-				c.px(x + 1 + k * 2, y - 1 - (k % 2), sk[2])
+			for k in 3:
+				c.rect(x + k * 2, y - 2 + (k % 2), 1, 2 - (k % 2), face)
 		"runas":
 			c.px(x + 2, y + 4, Color("#8ae0ff"))
-			c.px(x + 3, y + 5, Color("#8ae0ff"))
-			c.px(x + 1, y + 1, Color("#8ae0ff"))
+			c.px(x + 5, y + 5, Color("#8ae0ff"))
 		"cicatriz":
-			c.px(x + 4, y + 2, Color("#c03a3a"))
-			c.px(x + 5, y + 5, Color("#c03a3a"))
+			c.px(x + 3, y + 2, Color("#c03a3a"))
 			c.px(x + 4, y + 4, Color("#c03a3a"))
+			c.px(x + 3, y + 3, Color("#c03a3a"))
 		"esqueleto":
-			c.rect(x + 4, y + 2, 3, 3, Color("#1a1320"))
+			c.rect(x + 1, y + 2, 2, 2, Color("#0e0a0a"))
+			c.rect(x + 4, y + 2, 2, 2, Color("#0e0a0a"))
+			c.px(x + 2, y + 3, Color(look.get("glow", "#e0304a")))
 			c.px(x + 5, y + 3, Color(look.get("glow", "#e0304a")))
-			c.rect(x + 3, y + 6, 5, 1, Color("#1a1320"))
-			c.px(x + 4, y + 6, sk[2])
-			c.px(x + 6, y + 6, sk[2])
+			c.rect(x + 1, y + 5, 4, 1, Color("#0e0a0a"))
+			c.px(x + 2, y + 5, face)
+			c.px(x + 4, y + 5, face)
 		"minotauro":
-			c.rect(x + 7, y + 3, 3, 4, sk[0])
-			c.px(x + 9, y + 4, Color("#1a1320"))
-			c.px(x + 1, y - 1, Color("#e8e0c8"))
-			c.px(x, y - 2, Color("#e8e0c8"))
-			c.px(x + 6, y - 1, Color("#e8e0c8"))
-			c.px(x + 7, y - 2, Color("#e8e0c8"))
+			c.rect(x + 3, y + 3, 4, 3, shade)
+			c.px(x + 6, y + 4, Color("#0e0a0a"))
+			c.rect(x - 1, y - 2, 2, 2, Color("#e8e0c8"))
+			c.rect(x + 5, y - 2, 2, 2, Color("#e8e0c8"))
 		"morsa":
-			c.rect(x + 6, y + 4, 3, 2, sk[2])
-			c.px(x + 7, y + 6, Color.WHITE)
-			c.px(x + 7, y + 7, Color.WHITE)
-			c.rect(x - 1, y - 3, 10, 3, Color("#1a1a2a"))
-			c.rect(x + 2, y - 5, 4, 2, Color("#1a1a2a"))
-			c.px(x + 4, y - 2, Color.WHITE)
-		"casco_espacial":
-			c.rect(x - 1, y - 1, 10, 9, Color("#c8c8d8"))
-			c.rect(x + 3, y + 1, 6, 5, Color("#3a8ad0"))
-			c.px(x + 7, y + 2, Color.WHITE)
+			c.rect(x + 3, y + 4, 3, 1, sk[2].lightened(0.2))
+			c.px(x + 4, y + 5, Color.WHITE)
+			c.px(x + 4, y + 6, Color.WHITE)
+			c.rect(x - 1, y - 2, 8, 3, Color("#1a1a2a"))
+			c.rect(x + 1, y - 4, 4, 2, Color("#1a1a2a"))
+			c.px(x + 3, y - 2, Color.WHITE)
 		"reina":
-			c.rect(x, y - 1, 8, 2, hair)
-			c.rect(x - 1, y, 2, 8, hair)
-			for k in 4:
-				c.px(x + 1 + k * 2, y - 3 + (k % 2), Color("#e0f4ff"))
-			c.rect(x + 1, y - 2, 7, 1, Color("#8ac4f0"))
+			c.rect(x - 1, y, 1, 6, hair)
+			c.rect(x, y + 2, 1, 4, hair)
+			for k in 3:
+				c.px(x + k * 2 + 1, y - 2 + (k % 2), Color("#e0f4ff"))
+			c.rect(x, y - 1, 6, 1, Color("#8ac4f0"))
 		"yeti":
-			c.rect(x - 1, y - 1, 10, 3, sk[2])
-			c.rect(x + 3, y + 5, 4, 2, Color("#6a8ab0"))
+			c.rect(x, y, 6, 2, sk[2])
+			c.rect(x, y + 4, 6, 2, sk[2])
+			c.rect(x + 2, y + 2, 4, 2, Color("#6a8ab0"))
+			c.px(x + 2, y + 2, eye)
+			c.px(x + 5, y + 2, eye)
 		"cristal":
-			c.rect(x + 2, y - 3, 1, 3, Color("#bafff4"))
-			c.rect(x + 5, y - 4, 1, 4, Color("#bafff4"))
-			c.px(x + 5, y + 3, Color("#ffffff"))
+			c.rect(x + 1, y - 2, 1, 2, Color("#bafff4"))
+			c.rect(x + 4, y - 3, 1, 3, Color("#bafff4"))
 		"zombi":
-			c.rect(x, y - 1, 5, 1, hair)
-			c.px(x + 5, y + 3, Color("#e0e04a"))
-			c.rect(x + 4, y + 6, 3, 1, Color("#2a1a1a"))
+			c.rect(x + 3, y, 3, 1, face)
+			c.px(x + 4, y + 3, Color("#e0e04a"))
+			c.rect(x + 2, y + 5, 3, 1, Color("#2a1a1a"))
+	c.ink()
+	return c.img
 
 
 ## Aspecto de enemigos y vecinos humanoides.

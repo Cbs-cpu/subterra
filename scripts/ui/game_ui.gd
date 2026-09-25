@@ -777,6 +777,9 @@ func _draw_world_labels(h: Hero) -> void:
 		placed.append(_prompt_zone(np))
 	if not notes.is_empty():
 		placed.append(_notes_zone())
+	# Cartel de entrada a la zona (título y subtítulo en el centro de arriba).
+	if card.size() > 0 and panel == "":
+		placed.append(Rect2(240 - 150, 60, 300, 56))
 	var items: Array = []
 	# Diálogos de vecinos: los más importantes, se colocan primero.
 	for n in w.npcs:

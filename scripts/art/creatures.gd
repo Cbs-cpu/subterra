@@ -41,6 +41,8 @@ static func build(spr: String, pal: String, anim: String, i: int) -> ImageTextur
 			c = Pix.new(12, 12)
 			c.ellipse(6, 6, 5, 5, Color.MAGENTA)
 	c.outline()
+	# Contorno negro como el del personaje (el lienzo crece 1 px por lado).
+	c.ink(Pix.INK, true)
 	return c.tex()
 
 

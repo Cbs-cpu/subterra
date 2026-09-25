@@ -110,4 +110,5 @@ static func build(template: String, pal: String) -> ImageTexture:
 	# Pociones: el líquido usa la rampa de la poción; el vidrio es claro.
 	c.stamp(rows, 0, 0, legend)
 	c.outline()
+	c.ink()
 	return c.tex()

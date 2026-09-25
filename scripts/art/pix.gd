@@ -4,6 +4,8 @@ extends RefCounted
 ## Todo el arte del juego se genera con esto (original, sin assets externos).
 
 const OUTLINE := Color("#1a1320")
+## Negro de los contornos gruesos (el mismo que las piezas del Minero).
+const INK := Color("#0e0a0a")
 
 ## Paleta base (48 colores). Las rampas de material van de oscuro a claro.
 const RAMPS := {
@@ -156,6 +158,29 @@ func outline(col: Color = OUTLINE, ring := false) -> void:
 				img.set_pixel(xx, yy, p.darkened(0.32))
 			elif above or left:
 				img.set_pixel(xx, yy, p.lightened(0.14))
+
+
+## Contorno exterior negro de 1 px (estilo de las piezas del personaje): rodea todo lo
+## opaco sin tocar los colores de dentro. Con `grow` el lienzo crece 1 px por cada lado para
+## que el contorno no se corte en los bordes.
+func ink(col: Color = INK, grow := false) -> void:
+	if grow:
+		var big := Image.create(w + 2, h + 2, false, Image.FORMAT_RGBA8)
+		big.blit_rect(img, Rect2i(0, 0, w, h), Vector2i(1, 1))
+		img = big
+		w += 2
+		h += 2
+	var src := img.duplicate()
+	for yy in h:
+		for xx in w:
+			if src.get_pixel(xx, yy).a > 0.0:
+				continue
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var nx: int = xx + d.x
+				var ny: int = yy + d.y
+				if nx >= 0 and ny >= 0 and nx < w and ny < h and src.get_pixel(nx, ny).a > 0.0:
+					img.set_pixel(xx, yy, col)
+					break
 
 
 ## Dibuja texto en forma de filas con una leyenda de colores.

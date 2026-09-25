@@ -113,10 +113,10 @@ func _draw() -> void:
 		"vecino":
 			var fr: Dictionary = Art.npc_frame("vecino", "run" if walk_dir != 0.0 else "idle", int(t * (9.0 if walk_dir != 0.0 else 3.0)))
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2(-1 if walk_dir < 0.0 else 1, 1))
-			draw_texture(fr["tex"], Vector2(-7, -18))
+			draw_texture(fr["tex"], -Vector2(fr["origin"]))
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		_:
 			draw_texture(Art.stall(kind), Vector2(-28, -44))
 			var fr2: Dictionary = Art.npc_frame(kind, "idle", int(t * 3.0))
-			draw_texture(fr2["tex"], Vector2(-7, -22))
+			draw_texture(fr2["tex"], -Vector2(fr2["origin"]) + Vector2(0, -4))
 			# Rótulos y diálogos: los dibuja GameUI en alta resolución.

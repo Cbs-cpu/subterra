@@ -42,7 +42,7 @@ func _paint() -> void:
 			var base := Transform2D(0.0, Vector2(Z, Z), 0.0, feet)
 			for n in ORDER:
 				var s: Sprite2D = r.get_node(n)
-				var t := r.transform * s.transform
+				var t := RigPose.pixel_tr(r.transform * s.transform)
 				t.origin = t.origin.round()
 				cv.draw_set_transform_matrix(base * t)
 				cv.draw_texture(s.texture, s.offset)

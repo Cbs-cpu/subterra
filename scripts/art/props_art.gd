@@ -92,6 +92,7 @@ static func plant(biome: String, h: int, variant: int) -> ImageTexture:
 	c.rect(x - 4, 1, 8, 1, leaf_hi)
 	c.rect(x - 6, 2, 4, 1, leaf_hi)
 	c.outline(Color(leaf_lo.darkened(0.6)))
+	c.ink()
 	return c.tex()
 
 
@@ -111,6 +112,7 @@ static func vine(biome: String, h: int, variant: int) -> ImageTexture:
 
 static func _done(c: Pix) -> ImageTexture:
 	c.outline()
+	c.ink()
 	return c.tex()
 
 

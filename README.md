@@ -74,7 +74,7 @@ godot --path . -s res://tools/rig_strip.gd                   # hoja de revisión
 
 La escena se puede abrir y retocar en el editor (pestaña Animación); si se regenera con el script se sobrescribe.
 
-El resto de razas, vecinos y enemigos siguen generándose por código (`scripts/art/`).
+El resto de razas, vecinos, tenderos y enemigos con forma de persona usan el mismo sistema: `scripts/art/humanoid.gd` genera sus piezas (cabeza, torso, manos y pies con contorno negro y variantes: yelmos, setas, calaveras, túnicas…) y las monta con las poses que `RigPose` lee de las animaciones de `scenes/pj_rig.tscn`, así que todos se mueven igual que el protagonista. Criaturas, objetos y props llevan también contorno negro. `python tools/contact_sheet.py` hace hojas de revisión en `shots/hoja_*.png` tras exportar el arte.
 
 Argumentos tras `--`: `--play` (partida directa), `--shots` (capturas en `shots/`), `--ui-audit` (recorre todas las pantallas y paneles, guarda `shots/ui_*.png` y avisa de cualquier texto que se solape o se salga de la pantalla), `--host-test` y `--join-test` (prueba de red en local).
 

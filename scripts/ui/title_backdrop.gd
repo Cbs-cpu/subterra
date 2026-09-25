@@ -280,12 +280,12 @@ func _draw() -> void:
 
 
 func _draw_hero(feet: Vector2) -> void:
-	_rig_ap.seek(fmod(t, 1.2), true)
+	_rig_ap.seek(fmod(t, 1.4), true)
 	var r: Node2D = _rig.get_node("Root")
 	var base := Transform2D(0.0, Vector2(PX, PX), 0.0, feet * PX)
 	for n in RIG_ORDER:
 		var s: Sprite2D = r.get_node(n)
-		var tr := r.transform * s.transform
+		var tr := RigPose.pixel_tr(r.transform * s.transform)
 		tr.origin = tr.origin.round()
 		draw_set_transform_matrix(base * tr)
 		draw_texture(s.texture, s.offset)
