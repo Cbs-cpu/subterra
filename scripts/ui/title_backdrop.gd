@@ -1,33 +1,50 @@
 class_name TitleBackdrop
 extends Node2D
-## Fondo animado de la portada y los menús, dibujado en vectorial (no pixel art):
-## una caverna musgosa con una grieta en el techo por la que entra luz dorada, raíces y
-## lianas colgando, esporas brillantes que suben, setas luminosas y hierba que se mece.
-## Las capas se desplazan un poco con el ratón (paralaje).
+## Fondo animado de la portada y los menús en pixel art gordito (rejilla de 240x135, cada
+## píxel ocupa 2x2 píxeles lógicos): cielo nocturno con luna, estrellas que titilan y nubes,
+## montañas, bosque lejano, bosque cercano con contorno negro, suelo de hierba y tierra, una
+## hoguera y el Minero descansando a su lado, y luciérnagas. Las capas se desplazan con el
+## ratón a saltos de un píxel (paralaje).
 
 const W := 480.0
 const H := 270.0
+const LW := 240                  # ancho de la rejilla de píxeles
+const LH := 135
+const PX := 2.0                  # píxeles lógicos por píxel de la rejilla
+const MARGIN := 10               # margen de las capas para el paralaje
+const GROUND := 116              # altura del suelo en la rejilla
+const INK := Color("#0e0a0a")
+const FIRE := Vector2(74, GROUND)
+const HERO := Vector2(58, GROUND)
+const RIG_ORDER := ["PieB", "PieF", "ManoB", "Torso", "Cabeza", "ManoF"]
 
 var t := 0.0
 var dim := 0.0               # 0 = portada, 1 = submenús (fondo más apagado)
 var _dim_to := 0.0
 var _par := Vector2.ZERO
-var _far := PackedVector2Array()
-var _mid_l := PackedVector2Array()
-var _mid_r := PackedVector2Array()
-var _ceil := PackedVector2Array()
-var _floor := PackedVector2Array()
-var _vines: Array = []
-var _spores: Array = []
-var _shrooms: Array = []
-var _blades: Array = []
+var _sky: ImageTexture
+var _clouds: ImageTexture
+var _far: ImageTexture
+var _forest_far: ImageTexture
+var _forest: ImageTexture
+var _front: ImageTexture
+var _stars: Array = []
+var _flies: Array = []
 var _rng := RandomNumberGenerator.new()
+var _rig: Node2D
+var _rig_ap: AnimationPlayer
 
 
 func _ready() -> void:
-	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_rng.seed = 20260925
 	_build()
+	_rig = load("res://scenes/pj_rig.tscn").instantiate()
+	_rig.visible = false
+	add_child(_rig)
+	_rig_ap = _rig.get_node("AnimationPlayer")
+	_rig_ap.speed_scale = 0.0
+	_rig_ap.play("idle")
 
 
 func set_dimmed(on: bool) -> void:
@@ -40,227 +57,236 @@ func _process(dt: float) -> void:
 	var m := get_local_mouse_position()
 	var want := Vector2(clampf((m.x - W / 2.0) / (W / 2.0), -1.0, 1.0), clampf((m.y - H / 2.0) / (H / 2.0), -1.0, 1.0))
 	_par = _par.lerp(want, clampf(dt * 2.5, 0.0, 1.0))
-	for s in _spores:
-		s["p"].y -= s["v"] * dt
-		s["p"].x += sin(t * s["f"] + s["ph"]) * 6.0 * dt
-		if s["p"].y < -6.0:
-			s["p"] = Vector2(_rng.randf_range(0, W), H + 4.0)
+	for f in _flies:
+		f["p"] += f["v"] * dt
+		f["v"] = f["v"].rotated(sin(t * f["f"] + f["ph"]) * dt * 1.5)
+		if f["p"].x < 0 or f["p"].x > LW or f["p"].y < 40 or f["p"].y > GROUND:
+			f["v"] = -f["v"]
+			f["p"] = f["p"].clamp(Vector2(0, 40), Vector2(LW, GROUND))
 	queue_redraw()
 
 
-# --- Construcción de las formas (una vez) --------------------------------------------------
+# --- Construcción de las capas (una vez) --------------------------------------------------
 
-func _ridge(y0: float, amp: float, step: float, freq: float, seed_off: float, top: bool) -> PackedVector2Array:
-	var pts := PackedVector2Array()
-	var x := -40.0
-	while x <= W + 40.0:
-		var y := y0 + sin(x * freq + seed_off) * amp + sin(x * freq * 2.7 + seed_off * 1.9) * amp * 0.45 \
-			+ sin(x * freq * 6.1 + seed_off * 0.7) * amp * 0.18
-		pts.append(Vector2(x, y))
-		x += step
-	if top:
-		pts.append(Vector2(W + 40.0, -160.0))
-		pts.append(Vector2(-40.0, -160.0))
-	else:
-		pts.append(Vector2(W + 40.0, H + 40.0))
-		pts.append(Vector2(-40.0, H + 40.0))
-	return pts
+func _img(w: int, h: int) -> Image:
+	return Image.create(w, h, false, Image.FORMAT_RGBA8)
 
 
-func _open(pts: PackedVector2Array, width: float, depth: float) -> PackedVector2Array:
-	var out := pts.duplicate()
-	for i in out.size() - 2:
-		var p: Vector2 = out[i]
-		p.y -= exp(-pow((p.x - W / 2.0) / width, 2.0)) * depth
-		out[i] = p
-	return out
+func _rect(img: Image, x: int, y: int, w: int, h: int, c: Color) -> void:
+	for yy in range(maxi(y, 0), mini(y + h, img.get_height())):
+		for xx in range(maxi(x, 0), mini(x + w, img.get_width())):
+			img.set_pixel(xx, yy, c)
 
 
-func _side(x_edge: float, dir: float, seed_off: float) -> PackedVector2Array:
-	# Pared lateral de la caverna (dir = 1 pared izquierda, -1 derecha).
-	var pts := PackedVector2Array()
-	var y := -30.0
-	while y <= H + 30.0:
-		var bulge := 40.0 + sin(y * 0.021 + seed_off) * 26.0 + sin(y * 0.063 + seed_off * 2.0) * 10.0
-		pts.append(Vector2(x_edge + dir * bulge, y))
-		y += 6.0
-	pts.append(Vector2(x_edge - dir * 40.0, H + 30.0))
-	pts.append(Vector2(x_edge - dir * 40.0, -30.0))
-	return pts
+func _disc(img: Image, cx: float, cy: float, r: float, c: Color) -> void:
+	for yy in range(int(cy - r) - 1, int(cy + r) + 2):
+		for xx in range(int(cx - r) - 1, int(cx + r) + 2):
+			if xx >= 0 and yy >= 0 and xx < img.get_width() and yy < img.get_height():
+				if Vector2(xx + 0.5 - cx, yy + 0.5 - cy).length() <= r:
+					img.set_pixel(xx, yy, c)
+
+
+## Contorno negro de 1 px alrededor de todo lo opaco.
+func _ink(img: Image) -> void:
+	var src := img.duplicate()
+	for y in img.get_height():
+		for x in img.get_width():
+			if src.get_pixel(x, y).a > 0.0:
+				continue
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var n: Vector2i = Vector2i(x, y) + d
+				if n.x >= 0 and n.y >= 0 and n.x < img.get_width() and n.y < img.get_height() and src.get_pixelv(n).a > 0.0:
+					img.set_pixel(x, y, INK)
+					break
 
 
 func _build() -> void:
-	_far = _ridge(58.0, 16.0, 6.0, 0.018, 1.3, true)
-	_ceil = _ridge(20.0, 14.0, 5.0, 0.026, 4.1, true)
-	# Grieta en el centro del techo por donde entra la luz.
-	_far = _open(_far, 44.0, 40.0)
-	_ceil = _open(_ceil, 30.0, 70.0)
-	_mid_l = _side(-20.0, 1.0, 0.4)
-	_mid_r = _side(W + 20.0, -1.0, 2.2)
-	_floor = _ridge(236.0, 7.0, 5.0, 0.03, 2.6, false)
-	# Lianas y raíces que cuelgan del techo (evitan la grieta central de luz).
-	for i in 26:
-		var x := _rng.randf_range(0, W)
-		if absf(x - W / 2.0) < 50.0:
-			continue
-		_vines.append({"x": x, "len": _rng.randf_range(24, 110), "ph": _rng.randf() * TAU,
-			"w": _rng.randf_range(0.8, 1.8), "leaves": _rng.randi_range(3, 7), "depth": _rng.randf_range(0.4, 1.0)})
+	var lw := LW + MARGIN * 2
+	# Cielo: bandas de color con tramado en las transiciones.
+	var sky := _img(LW, LH)
+	var bands := [Color("#0a0e24"), Color("#101a38"), Color("#16284a"), Color("#1e3a52"), Color("#2a5058"), Color("#3a6a5c")]
+	for y in LH:
+		var k := clampf(float(y) / GROUND, 0.0, 0.999) * (bands.size() - 1)
+		var i := int(k)
+		var f := k - i
+		for x in LW:
+			var dither = f > [0.2, 0.6, 0.4, 0.8][(x % 2) + (y % 2) * 2]
+			sky.set_pixel(x, y, bands[mini(i + 1, bands.size() - 1)] if dither else bands[i])
+	# Luna con cráteres y halo tramado.
+	var mc := Vector2(220, 20)
+	for y in range(int(mc.y) - 16, int(mc.y) + 17):
+		for x in range(int(mc.x) - 16, int(mc.x) + 17):
+			var d := Vector2(x + 0.5, y + 0.5).distance_to(mc)
+			if d < 15.0 and d > 9.0 and (x + y) % 2 == 0:
+				sky.set_pixel(x, y, sky.get_pixel(x, y).lightened(0.12))
+	_disc(sky, mc.x, mc.y, 9.0, Color("#f4efc8"))
+	_disc(sky, mc.x + 2, mc.y - 1, 7.5, Color("#fffbe0"))
+	for cr in [Vector2(-3, 2), Vector2(2, 4), Vector2(-1, -4)]:
+		_rect(sky, int(mc.x + cr.x), int(mc.y + cr.y), 2, 2, Color("#d8d0a0"))
+	_sky = ImageTexture.create_from_image(sky)
 	for i in 70:
-		_spores.append({"p": Vector2(_rng.randf_range(0, W), _rng.randf_range(0, H)), "v": _rng.randf_range(4, 14),
-			"f": _rng.randf_range(0.6, 1.6), "ph": _rng.randf() * TAU, "r": _rng.randf_range(0.5, 1.4),
-			"gold": _rng.randf() < 0.55})
-	for x in [36.0, 58.0, 84.0, 396.0, 420.0, 446.0, 118.0, 362.0]:
-		_shrooms.append({"x": x + _rng.randf_range(-6, 6), "h": _rng.randf_range(6, 15), "r": _rng.randf_range(4, 8), "ph": _rng.randf() * TAU})
-	var bx := -4.0
-	while bx < W + 4.0:
-		_blades.append({"x": bx, "h": _rng.randf_range(5, 16), "ph": _rng.randf() * TAU, "lean": _rng.randf_range(-0.3, 0.3)})
-		bx += _rng.randf_range(2.0, 5.0)
+		_stars.append({"p": Vector2i(_rng.randi_range(0, LW - 1), _rng.randi_range(0, 70)), "ph": _rng.randf() * TAU, "b": _rng.randf_range(0.4, 1.0)})
+	# Nubes: capa que se desplaza sola.
+	var cl := _img(LW, 60)
+	for i in 5:
+		var cx := _rng.randi_range(10, LW - 30)
+		var cy := _rng.randi_range(12, 50)
+		for k in 4:
+			_disc(cl, cx + k * 6, cy - (2 if k % 2 else 0), 4.0 + (k % 2) * 1.5, Color("#2a3e5e"))
+		_rect(cl, cx - 3, cy, 26, 3, Color("#2a3e5e"))
+	_clouds = ImageTexture.create_from_image(cl)
+	# Montañas lejanas: dos crestas dentadas.
+	var far := _img(lw, LH)
+	for x in lw:
+		var h1 := 70 + int(sin(x * 0.045) * 12.0 + sin(x * 0.13 + 1.0) * 5.0 + abs(sin(x * 0.021)) * 10.0)
+		var h2 := 86 + int(sin(x * 0.07 + 2.0) * 8.0 + sin(x * 0.19) * 3.0)
+		for y in range(h1, LH):
+			far.set_pixel(x, y, Color("#1a2c40"))
+		for y in range(h2, LH):
+			far.set_pixel(x, y, Color("#1e3844"))
+		if h1 < 66:
+			far.set_pixel(x, h1, Color("#6a86a0"))       # nieve en las cumbres
+	_far = ImageTexture.create_from_image(far)
+	# Bosque lejano: copas redondas oscuras, sin contorno.
+	var ff := _img(lw, LH)
+	var x0 := -4
+	while x0 < lw + 8:
+		var th := _rng.randi_range(18, 30)
+		_rect(ff, x0 + 3, GROUND - th, 2, th, Color("#1a2a22"))
+		for k in 3:
+			_disc(ff, x0 + 4 + _rng.randi_range(-2, 2), GROUND - th - 2 + k * 6, 6.0 - k * 0.5, Color("#1c3a2e"))
+		x0 += _rng.randi_range(9, 14)
+	_rect(ff, 0, GROUND - 6, lw, 8, Color("#1c3a2e"))
+	_forest_far = ImageTexture.create_from_image(ff)
+	# Bosque cercano: árboles de tronco grueso y copas por pisos, con contorno negro.
+	var fo := _img(lw, LH)
+	for tx in [8, 34, 150, 176, 212, 236]:
+		_tree(fo, tx, GROUND, _rng.randi_range(34, 50))
+	_ink(fo)
+	_forest = ImageTexture.create_from_image(fo)
+	# Suelo: hierba con matas y tierra con piedras.
+	var fr := _img(lw, LH)
+	for x in lw:
+		var gt := GROUND - (1 if (x * 7) % 5 == 0 else 0) - (1 if (x * 13) % 11 == 0 else 0)
+		for y in range(gt, LH):
+			var c := Color("#6b4226")
+			if y < GROUND + 2:
+				c = Color("#6ac04a") if y == gt else Color("#3a8a2a")
+			elif y < GROUND + 3:
+				c = Color("#2a5a24")
+			elif (x / 3 + y / 3) % 7 == 0:
+				c = Color("#4a2e1a")
+			fr.set_pixel(x, y, c)
+	for i in 26:
+		var sx := _rng.randi_range(0, lw - 4)
+		var sy := _rng.randi_range(GROUND + 5, LH - 3)
+		_rect(fr, sx, sy, 3, 2, Color("#8b8b9c"))
+		_rect(fr, sx, sy, 3, 1, Color("#bdbdc9"))
+	for i in 18:
+		var gx := _rng.randi_range(0, lw - 1)
+		for k in _rng.randi_range(2, 4):
+			fr.set_pixel(gx, GROUND - 1 - k, Color("#5ab04a"))
+			if k == 2:
+				fr.set_pixel(gx + 1, GROUND - 2, Color("#5ab04a"))
+	# Setas y flores.
+	for m in [Vector2i(22, 0), Vector2i(128, 0), Vector2i(204, 0)]:
+		_rect(fr, m.x + 1, GROUND - 3, 2, 3, Color("#f0e0c8"))
+		_rect(fr, m.x - 1, GROUND - 5, 6, 2, Color("#c0302a"))
+		fr.set_pixel(m.x + 1, GROUND - 5, Color.WHITE)
+	for fl in [Vector2i(98, 0), Vector2i(118, 0), Vector2i(186, 0)]:
+		fr.set_pixel(fl.x, GROUND - 1, Color("#3a8a2a"))
+		fr.set_pixel(fl.x, GROUND - 2, Color("#f7d552"))
+	# Leños de la hoguera.
+	var fx := int(FIRE.x) + MARGIN
+	_rect(fr, fx - 5, GROUND - 2, 10, 2, Color("#6b4226"))
+	_rect(fr, fx - 3, GROUND - 3, 6, 1, Color("#9c6a3c"))
+	for s in [-7, -4, 5, 7]:
+		_rect(fr, fx + s - 1, GROUND - 1, 2, 1, Color("#8b8b9c"))
+	_ink(fr)
+	_front = ImageTexture.create_from_image(fr)
+	for i in 16:
+		_flies.append({"p": Vector2(_rng.randf_range(0, LW), _rng.randf_range(50, GROUND - 6)),
+			"v": Vector2(_rng.randf_range(4, 10), 0).rotated(_rng.randf() * TAU), "f": _rng.randf_range(0.6, 1.6), "ph": _rng.randf() * TAU})
 
 
-# --- Dibujo ---------------------------------------------------------------------------------
+func _tree(img: Image, x: int, ground: int, h: int) -> void:
+	var trunk := Color("#5a3a22")
+	_rect(img, x - 2, ground - h, 4, h, trunk)
+	_rect(img, x - 2, ground - h, 1, h, Color("#3a2414"))
+	_rect(img, x + 1, ground - h, 1, h, Color("#7a5232"))
+	_rect(img, x - 3, ground - 2, 6, 2, trunk)
+	var leaf := [Color("#1e4a26"), Color("#2d6a34"), Color("#4a9a44")]
+	var floors := 3
+	for k in floors:
+		var cy := ground - h + k * 9
+		var r := 7.0 + k * 1.5
+		_disc(img, x, cy, r, leaf[0])
+		_disc(img, x - 1, cy - 1, r - 1.5, leaf[1])
+		_disc(img, x - 2, cy - 3, r - 4.5, leaf[2])
 
-func _shift(pts: PackedVector2Array, off: Vector2) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	out.resize(pts.size())
-	for i in pts.size():
-		out[i] = pts[i] + off
-	return out
+
+# --- Dibujo -----------------------------------------------------------------------------
+
+## Dibuja una capa de la rejilla desplazada `shift` píxeles de rejilla (enteros).
+func _layer(tex: Texture2D, shift: Vector2, y := 0, tint := Color.WHITE) -> void:
+	var p := Vector2(round(shift.x) - MARGIN, round(shift.y) + y) * PX
+	draw_texture_rect(tex, Rect2(p, tex.get_size() * PX), false, tint)
+
+
+func _px(p: Vector2, c: Color, s := 1.0) -> void:
+	draw_rect(Rect2((p.floor()) * PX, Vector2(s, s) * PX), c)
 
 
 func _draw() -> void:
-	# Fondo: verde profundo arriba, casi negro abajo.
-	UiKit.vgrad(self, Rect2(0, 0, W, H * 0.55), Color("#123a24"), Color("#0a2216"))
-	UiKit.vgrad(self, Rect2(0, H * 0.55, W, H * 0.45 + 1), Color("#0a2216"), Color("#030a06"))
-	# Resplandor dorado de la grieta.
-	var crack := Vector2(W / 2.0, 6.0) + _par * Vector2(-3, -1)
-	UiKit.glow(self, crack + Vector2(0, 30), 190.0, Color(1.0, 0.82, 0.35, 0.22))
-	UiKit.glow(self, crack + Vector2(0, 8), 80.0, Color(1.0, 0.9, 0.55, 0.35))
-	# Rayos de luz (polígonos con degradado) que respiran despacio.
-	for i in 7:
-		var k := float(i) / 6.0
-		var top_x := crack.x - 26.0 + k * 52.0
-		var spread := lerpf(-150.0, 150.0, k) + sin(t * 0.3 + i) * 10.0
-		var a := (0.07 + 0.05 * sin(t * 0.7 + i * 1.7)) * (1.0 - dim * 0.5)
-		var wtop := 5.0 + (i % 3) * 3.0
-		var wbot := 26.0 + (i % 2) * 20.0
-		polygon_grad([Vector2(top_x - wtop, crack.y), Vector2(top_x + wtop, crack.y),
-			Vector2(top_x + spread + wbot, H * 0.95), Vector2(top_x + spread - wbot, H * 0.95)],
-			Color(1.0, 0.86, 0.42, a), Color(1.0, 0.86, 0.42, 0.0))
-	# Capa lejana: bóveda con relieve.
-	draw_colored_polygon(_shift(_far, _par * Vector2(-4, -2)), Color("#0f3020"))
-	# Paredes laterales (capa media).
-	draw_colored_polygon(_shift(_mid_l, _par * Vector2(-8, -3)), Color("#0a2518"))
-	draw_colored_polygon(_shift(_mid_r, _par * Vector2(-8, -3)), Color("#0a2518"))
-	_moss_edge(_shift(_mid_l, _par * Vector2(-8, -3)), true)
-	_moss_edge(_shift(_mid_r, _par * Vector2(-8, -3)), false)
-	# Techo cercano con la grieta de luz en el centro.
-	var ceil := _shift(_ceil, _par * Vector2(-12, -4))
-	draw_colored_polygon(ceil, Color("#06170e"))
-	# Lianas.
-	for v in _vines:
-		_vine(v)
-	# Esporas brillantes (detrás del suelo).
-	for s in _spores:
-		var p: Vector2 = s["p"] + _par * Vector2(-6, -2) * s["r"]
-		var tw: float = 0.55 + 0.45 * sin(t * 2.2 + s["ph"])
-		var col: Color = Color(1.0, 0.86, 0.38) if s["gold"] else Color(0.72, 0.95, 0.42)
-		UiKit.glow(self, p, 3.5 + s["r"] * 3.0, Color(col, 0.28 * tw))
-		draw_circle(p, s["r"] * 0.55, Color(col.lightened(0.4), 0.9 * tw), true, -1.0, true)
-	# Suelo cercano con hierba y setas luminosas.
-	var fl := _shift(_floor, _par * Vector2(-16, -5))
-	for m in _shrooms:
-		_shroom(m, _par * Vector2(-16, -5))
-	draw_colored_polygon(fl, Color("#04110a"))
-	for b in _blades:
-		var bx: float = b["x"] + _par.x * -16.0
-		var base := Vector2(bx, _floor_y(b["x"]) + _par.y * -5.0 + 1.0)
-		var sway: float = sin(t * 1.4 + b["ph"] + b["x"] * 0.03) * 2.2 + b["lean"] * b["h"]
-		draw_colored_polygon(PackedVector2Array([base + Vector2(-1.1, 0), base + Vector2(sway, -b["h"]), base + Vector2(1.1, 0)]),
-			Color("#0b2a17").lerp(Color("#2c6b2e"), clampf(b["h"] / 16.0, 0.0, 1.0) * 0.6))
-	# Viñeta.
-	UiKit.vgrad(self, Rect2(0, 0, W, 60), Color(0, 0, 0, 0.35), Color(0, 0, 0, 0))
-	UiKit.vgrad(self, Rect2(0, H - 70, W, 70), Color(0, 0, 0, 0), Color(0, 0, 0, 0.45))
-	if dim > 0.0:
-		draw_rect(Rect2(0, 0, W, H), Color(0.01, 0.04, 0.02, 0.55 * dim))
+	draw_texture_rect(_sky, Rect2(0, 0, W, H), false)
+	# Estrellas que titilan.
+	for s in _stars:
+		var a: float = s["b"] * (0.55 + 0.45 * sin(t * 2.0 + s["ph"]))
+		_px(Vector2(s["p"]), Color(1, 1, 0.9, a))
+	# Nubes que pasan despacio.
+	var cx := fmod(t * 3.0, float(LW))
+	draw_texture_rect(_clouds, Rect2(Vector2(round(cx) - LW, 0) * PX, _clouds.get_size() * PX), false, Color(1, 1, 1, 0.6))
+	draw_texture_rect(_clouds, Rect2(Vector2(round(cx), 0) * PX, _clouds.get_size() * PX), false, Color(1, 1, 1, 0.6))
+	_layer(_far, -_par * 2.0)
+	_layer(_forest_far, -_par * 4.0)
+	_layer(_forest, -_par * 6.0)
+	var front_shift := -_par * 8.0
+	_layer(_front, front_shift)
+	var off := Vector2(round(front_shift.x), round(front_shift.y))
+	# Hoguera: resplandor y llamas.
+	var fire := FIRE + off
+	var flick := 0.85 + 0.15 * sin(t * 13.0) * sin(t * 7.3)
+	UiKit.glow(self, (fire + Vector2(0, -5)) * PX, 70.0 * flick, Color(1.0, 0.55, 0.2, 0.22))
+	var fl := [Color("#d0461e"), Color("#f58a2a"), Color("#ffd24a"), Color("#fff6c0")]
+	for k in 4:
+		var hgt := int(8 - k * 1.7 + sin(t * 11.0 + k) * 1.5)
+		var wdt := 7 - k * 2
+		for yy in hgt:
+			var sway := int(round(sin(t * 9.0 + yy * 0.7 + k) * (yy / 5.0)))
+			var ww := maxi(1, int(wdt * (1.0 - float(yy) / hgt)))
+			draw_rect(Rect2((fire + Vector2(-ww / 2 + sway, -3 - yy)) * PX, Vector2(ww, 1) * PX), fl[k])
+	for k in 3:
+		var sp := fmod(t * 0.9 + k * 0.33, 1.0)
+		_px(fire + Vector2(sin(t * 3.0 + k * 2.0) * 3.0, -8 - sp * 22.0), Color(1.0, 0.7, 0.3, 1.0 - sp))
+	# El Minero descansando junto al fuego (mismas piezas y animación que en el juego).
+	_draw_hero(HERO + off)
+	# Luciérnagas.
+	for f in _flies:
+		var a2 := 0.5 + 0.5 * sin(t * 3.0 + f["ph"])
+		UiKit.glow(self, f["p"] * PX + Vector2(1, 1), 7.0, Color(0.8, 1.0, 0.4, 0.25 * a2))
+		_px(f["p"], Color(0.9, 1.0, 0.5, 0.5 + 0.5 * a2))
+	# Viñeta y oscurecido de los submenús.
+	draw_rect(Rect2(0, 0, W, H), Color(0, 0.02, 0.02, 0.18 + dim * 0.42))
 
 
-func polygon_grad(pts: Array, top: Color, bottom: Color) -> void:
-	draw_polygon(PackedVector2Array(pts), PackedColorArray([top, top, bottom, bottom]))
-
-
-func _floor_y(x: float) -> float:
-	# Interpola la altura del suelo en x a partir de los puntos de la cresta.
-	var i := clampi(int((x + 40.0) / 5.0), 0, _floor.size() - 4)
-	var a := _floor[i]
-	var b := _floor[i + 1]
-	return lerpf(a.y, b.y, clampf((x - a.x) / maxf(b.x - a.x, 0.001), 0.0, 1.0))
-
-
-func _moss_edge(pts: PackedVector2Array, left: bool) -> void:
-	var edge := PackedVector2Array()
-	for i in pts.size() - 2:
-		edge.append(pts[i])
-	draw_polyline(edge, Color("#2f7a34", 0.55), 1.4, true)
-	for i in range(2, edge.size() - 2, 3):
-		var p := edge[i]
-		var d := 1.0 if left else -1.0
-		draw_circle(p + Vector2(d * 1.2, 0), 1.6 + sin(i * 1.7) * 0.6, Color("#3f8f3c", 0.6), true, -1.0, true)
-
-
-func _vine(v: Dictionary) -> void:
-	var depth: float = v["depth"]
-	var off := _par * Vector2(-12, -4) * depth
-	var x: float = v["x"] + off.x
-	var top := Vector2(x, _ceil_y(v["x"]) + off.y - 2.0)
-	var pts := PackedVector2Array()
-	var n := 10
-	for i in n + 1:
-		var k := float(i) / n
-		var sway := sin(t * 0.9 + v["ph"] + k * 2.0) * 4.0 * k * k
-		pts.append(top + Vector2(sway, k * v["len"]))
-	var col := Color("#123f22").lerp(Color("#1f5a2c"), depth)
-	draw_polyline(pts, col, v["w"] * depth + 0.4, true)
-	for j in v["leaves"]:
-		var k2: float = float(j + 1) / (v["leaves"] + 1)
-		var idx := int(k2 * n)
-		var p := pts[idx]
-		var side := 1.0 if j % 2 == 0 else -1.0
-		_leaf(p, side, 2.2 + depth * 1.6, col.lightened(0.15))
-	# Gota de luz en la punta de algunas lianas.
-	if int(v["x"]) % 3 == 0:
-		var tip := pts[n]
-		var a := 0.5 + 0.5 * sin(t * 1.8 + v["ph"])
-		UiKit.glow(self, tip, 7.0, Color(0.95, 0.85, 0.4, 0.35 * a))
-		draw_circle(tip, 1.1, Color(1.0, 0.92, 0.55, 0.9), true, -1.0, true)
-
-
-func _ceil_y(x: float) -> float:
-	var i := clampi(int((x + 40.0) / 5.0), 0, _ceil.size() - 4)
-	var a := _ceil[i]
-	var b := _ceil[i + 1]
-	return lerpf(a.y, b.y, clampf((x - a.x) / maxf(b.x - a.x, 0.001), 0.0, 1.0))
-
-
-func _leaf(p: Vector2, side: float, size: float, col: Color) -> void:
-	var pts := PackedVector2Array()
-	for i in 9:
-		var a := float(i) / 8.0 * TAU
-		pts.append(p + Vector2(side * (size * 0.9 + cos(a) * size), sin(a) * size * 0.45).rotated(side * 0.5))
-	draw_colored_polygon(pts, col)
-
-
-func _shroom(m: Dictionary, off: Vector2) -> void:
-	var base := Vector2(m["x"] + off.x, _floor_y(m["x"]) + off.y + 2.0)
-	var h: float = m["h"]
-	var r: float = m["r"]
-	var pulse := 0.7 + 0.3 * sin(t * 1.5 + m["ph"])
-	var cap := base + Vector2(0, -h)
-	UiKit.glow(self, cap, r * 4.5, Color(1.0, 0.85, 0.3, 0.22 * pulse))
-	draw_line(base, cap + Vector2(0, 1), Color("#d9d0a8"), 1.6, true)
-	var pts := PackedVector2Array()
-	for i in 13:
-		var a := PI + float(i) / 12.0 * PI
-		pts.append(cap + Vector2(cos(a) * r, sin(a) * r * 0.75))
-	draw_colored_polygon(pts, Color("#f2c94a").lerp(Color("#fff0a0"), 0.3 * pulse))
-	draw_circle(cap + Vector2(-r * 0.35, -r * 0.35), r * 0.16, Color(1, 1, 0.9, 0.8), true, -1.0, true)
-	draw_circle(cap + Vector2(r * 0.3, -r * 0.2), r * 0.11, Color(1, 1, 0.9, 0.7), true, -1.0, true)
+func _draw_hero(feet: Vector2) -> void:
+	_rig_ap.seek(fmod(t, 1.2), true)
+	var r: Node2D = _rig.get_node("Root")
+	var base := Transform2D(0.0, Vector2(PX, PX), 0.0, feet * PX)
+	for n in RIG_ORDER:
+		var s: Sprite2D = r.get_node(n)
+		var tr := r.transform * s.transform
+		tr.origin = tr.origin.round()
+		draw_set_transform_matrix(base * tr)
+		draw_texture(s.texture, s.offset)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
