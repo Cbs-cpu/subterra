@@ -120,13 +120,19 @@ def limo_ojos():
     return strip(frames)
 
 
-def limo():
+LIMO_AZUL = {"base": hexc("#4aa0e8"), "luz": hexc("#8ac8ff"), "brillo": hexc("#e8f6ff"),
+             "sombra": hexc("#2a70b8"), "hondo": hexc("#1a4a8a")}
+
+
+def limo(pal=LIMO):
     # Cuerpo: 0 normal, 1 aplastado, 2 estirado, 3 muy aplastado (aterrizaje).
-    cuerpo = strip([limo_cuerpo(12, 9), limo_cuerpo(14, 7), limo_cuerpo(10, 11), limo_cuerpo(16, 6)])
+    cuerpo = strip([limo_cuerpo(12, 9, pal), limo_cuerpo(14, 7, pal), limo_cuerpo(10, 11, pal), limo_cuerpo(16, 6, pal)])
     return {"cuerpo": cuerpo, "ojos": limo_ojos()}
 
 
-ENEMIGOS = {"limo": limo}
+# Carpeta -> función. Las variantes de color (<enemigo>_<paleta>) usan la escena del
+# enemigo base y solo cambian las texturas.
+ENEMIGOS = {"limo": limo, "limo_azul": lambda: limo(LIMO_AZUL)}
 
 
 def preview(name, parts, z=10):

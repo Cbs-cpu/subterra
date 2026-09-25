@@ -79,6 +79,81 @@ tracks/5/keys = {
 }
 
 [sub_resource type="Animation" id="Animation_cd5dc"]
+length = 0.2
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Root/Cuerpo:position")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(0, 0), Vector2(0, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Root/Cuerpo:rotation")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0.0, 0.0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Root/Cuerpo:frame")
+tracks/2/interp = 0
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [0, 2]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Root/Cuerpo/Ojos:position")
+tracks/3/interp = 0
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [Vector2(2, -6), Vector2(1, -7)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Root/Cuerpo/Ojos:rotation")
+tracks/4/interp = 2
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0.0, 0.0]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Root/Cuerpo/Ojos:frame")
+tracks/5/interp = 0
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [0, 0]
+}
+
+[sub_resource type="Animation" id="Animation_ayteh"]
 length = 0.35
 tracks/0/type = "value"
 tracks/0/imported = false
@@ -153,7 +228,7 @@ tracks/5/keys = {
 "values": [2, 2, 2, 0]
 }
 
-[sub_resource type="Animation" id="Animation_ayteh"]
+[sub_resource type="Animation" id="Animation_ei7ii"]
 length = 2.4
 loop_mode = 1
 tracks/0/type = "value"
@@ -229,7 +304,157 @@ tracks/5/keys = {
 "values": [0, 0, 0, 1, 0, 0]
 }
 
-[sub_resource type="Animation" id="Animation_ei7ii"]
+[sub_resource type="Animation" id="Animation_dbd7o"]
+length = 0.2
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Root/Cuerpo:position")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [Vector2(0, 0), Vector2(0, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Root/Cuerpo:rotation")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0.0, 0.0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Root/Cuerpo:frame")
+tracks/2/interp = 0
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [2, 0]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Root/Cuerpo/Ojos:position")
+tracks/3/interp = 0
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [Vector2(1, -7), Vector2(2, -6)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Root/Cuerpo/Ojos:rotation")
+tracks/4/interp = 2
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 0,
+"values": [0.0, 0.0]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Root/Cuerpo/Ojos:frame")
+tracks/5/interp = 0
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.2),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [0, 0]
+}
+
+[sub_resource type="Animation" id="Animation_wi7hy"]
+length = 0.3
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Root/Cuerpo:position")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.12, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [Vector2(0, 0), Vector2(0, 0), Vector2(0, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Root/Cuerpo:rotation")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.12, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.0, 0.0, 0.0]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Root/Cuerpo:frame")
+tracks/2/interp = 0
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.12, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [3, 1, 0]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Root/Cuerpo/Ojos:position")
+tracks/3/interp = 0
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.12, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [Vector2(3, -4), Vector2(2, -5), Vector2(2, -6)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Root/Cuerpo/Ojos:rotation")
+tracks/4/interp = 2
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.12, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 0,
+"values": [0.0, 0.0, 0.0]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Root/Cuerpo/Ojos:frame")
+tracks/5/interp = 0
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0, 0.12, 0.3),
+"transitions": PackedFloat32Array(1, 1, 1),
+"update": 1,
+"values": [0, 0, 0]
+}
+
+[sub_resource type="Animation" id="Animation_wp357"]
 length = 0.9
 loop_mode = 1
 tracks/0/type = "value"
@@ -305,26 +530,29 @@ tracks/5/keys = {
 "values": [0, 0, 0, 0, 0, 0, 0, 0]
 }
 
-[sub_resource type="AnimationLibrary" id="AnimationLibrary_dbd7o"]
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_qo784"]
 _data = {
 &"attack": SubResource("Animation_oiojs"),
-&"hurt": SubResource("Animation_cd5dc"),
-&"idle": SubResource("Animation_ayteh"),
-&"move": SubResource("Animation_ei7ii")
+&"fall": SubResource("Animation_cd5dc"),
+&"hurt": SubResource("Animation_ayteh"),
+&"idle": SubResource("Animation_ei7ii"),
+&"jump": SubResource("Animation_dbd7o"),
+&"land": SubResource("Animation_wi7hy"),
+&"move": SubResource("Animation_wp357")
 }
 
-[node name="Limo" type="Node2D" unique_id=268613064]
+[node name="Limo" type="Node2D" unique_id=1663270200]
 
-[node name="Root" type="Node2D" parent="." unique_id=614425789]
+[node name="Root" type="Node2D" parent="." unique_id=1444668375]
 
-[node name="Cuerpo" type="Sprite2D" parent="Root" unique_id=926646906]
+[node name="Cuerpo" type="Sprite2D" parent="Root" unique_id=20481753]
 texture_filter = 1
 texture = ExtResource("1_5dtic")
 centered = false
 offset = Vector2(-9, -14)
 hframes = 4
 
-[node name="Ojos" type="Sprite2D" parent="Root/Cuerpo" unique_id=1627544269]
+[node name="Ojos" type="Sprite2D" parent="Root/Cuerpo" unique_id=822505767]
 texture_filter = 1
 position = Vector2(2, -6)
 texture = ExtResource("2_xm5qm")
@@ -332,6 +560,6 @@ centered = false
 offset = Vector2(-4, -1)
 hframes = 3
 
-[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1988259771]
-libraries/ = SubResource("AnimationLibrary_dbd7o")
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1789883519]
+libraries/ = SubResource("AnimationLibrary_qo784")
 autoplay = &"idle"

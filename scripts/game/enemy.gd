@@ -31,6 +31,10 @@ var scale_draw := 1.0
 var phase2 := false
 var contact_cd := 0.0
 var land_t := 0.0
+## Enemigos por piezas (EnemyRig): animación actual, tiempo dentro de ella y golpe reciente.
+var rig_anim := ""
+var rig_t := 0.0
+var rig_hurt := 0.0
 var was_floor := true
 
 
@@ -66,6 +70,8 @@ func setup_enemy(w: Node, enemy_id: String, district: int, madman: bool) -> void
 
 func tick(dt: float) -> void:
 	anim_t += dt
+	rig_t += dt
+	rig_hurt = maxf(0.0, rig_hurt - dt)
 	flash_t = maxf(0.0, flash_t - dt)
 	contact_cd = maxf(0.0, contact_cd - dt)
 	hurt_flee = maxf(0.0, hurt_flee - dt)
@@ -665,6 +671,7 @@ func take_damage(amount: int, knockv: Vector2, by: Node, crit := false) -> void:
 	var a := Combat.vs_armor(amount, armor)
 	hp -= a
 	flash_t = 0.12
+	rig_hurt = 0.35
 	knock += knockv * knock_res
 	if data["ai"] == "pasivo":
 		hurt_flee = 2.0
@@ -686,6 +693,49 @@ func die(by: Node, silent := false) -> void:
 
 
 # --- Dibujo -----------------------------------------------------------------------------
+
+## Animación del enemigo por piezas y el punto de la misma según su estado.
+func _rig_state(spr: String, base: String) -> Array:
+	var name := "idle"
+	var tt := -1.0
+	var ai: String = data["ai"]
+	if rig_hurt > 0.0 and EnemyRig.has_anim(spr, "hurt"):
+		name = "hurt"
+		tt = EnemyRig.length(spr, "hurt") - rig_hurt
+	elif base == "attack" and EnemyRig.has_anim(spr, "attack"):
+		name = "attack"
+	elif not on_floor and not flying and EnemyRig.has_anim(spr, "jump"):
+		var l := EnemyRig.length(spr, "jump")
+		if vel.y < 0.0:
+			name = "jump"
+			tt = (1.0 - clampf(-vel.y / 250.0, 0.0, 1.0)) * l
+		else:
+			name = "fall"
+			tt = clampf(vel.y / 250.0, 0.0, 1.0) * l
+	elif land_t > 0.0 and EnemyRig.has_anim(spr, "land"):
+		name = "land"
+		tt = (0.15 - land_t) * 2.0
+	elif base == "move" and not (ai == "saltador" and on_floor):
+		name = "move"
+	if name != rig_anim:
+		rig_anim = name
+		rig_t = 0.0
+	var l2 := EnemyRig.length(spr, name)
+	if tt < 0.0:
+		tt = fmod(rig_t, l2) if name in ["idle", "move"] else minf(rig_t, l2)
+	return [name, tt]
+
+
+func _draw_rig(spr: String, base: String, tr: Transform2D, col: Color) -> void:
+	var st := _rig_state(spr, base)
+	var pal: String = data.get("pal", "")
+	for p in EnemyRig.pose(spr, st[0], st[1]):
+		var tex: Texture2D = EnemyRig.texture(spr, pal, p["tex"])
+		var fw: int = tex.get_width() / p["hframes"]
+		var src := Rect2(p["frame"] * fw, 0, fw, tex.get_height())
+		draw_set_transform_matrix(tr * (p["tr"] as Transform2D))
+		draw_texture_rect_region(tex, Rect2(p["offset"], src.size), src, col)
+
 
 func _draw() -> void:
 	if dead:
@@ -752,8 +802,12 @@ func _draw() -> void:
 		sx = 1.0
 		sy = 1.0
 		oy = 0.0
-	draw_set_transform(Vector2(shake_x, oy), 0.0, Vector2(facing * sc * sx, sc * sy))
-	draw_texture(tex, Vector2(-sz.x / 2.0, -sz.y), col)
+	if EnemyRig.has(spr):
+		# Por piezas: las animaciones ya llevan el rebote y el aplastamiento.
+		_draw_rig(spr, anim, Transform2D(0.0, Vector2(facing * sc, sc), 0.0, Vector2(roundf(shake_x), 0)), col)
+	else:
+		draw_set_transform(Vector2(shake_x, oy), 0.0, Vector2(facing * sc * sx, sc * sy))
+		draw_texture(tex, Vector2(-sz.x / 2.0, -sz.y), col)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if ai == "jefe_reina":
 		for k in 3:

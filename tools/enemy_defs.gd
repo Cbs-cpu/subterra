@@ -47,6 +47,20 @@ const DEFS := {
 				[0.62, {"Cuerpo": {"f": 1, "p": Vector2(3, 0)}, "Ojos": {"p": Vector2(2, -5)}}],
 				[0.7, {}],
 			]],
+			# Saltos de verdad (el limo salta con física): subida estirada, caída y aterrizaje.
+			"jump": [0.2, false, [
+				[0.0, {"Cuerpo": {"f": 2}, "Ojos": {"p": Vector2(1, -7)}}],
+				[0.2, {"Cuerpo": {"f": 0}}],
+			]],
+			"fall": [0.2, false, [
+				[0.0, {"Cuerpo": {"f": 0}}],
+				[0.2, {"Cuerpo": {"f": 2}, "Ojos": {"p": Vector2(1, -7)}}],
+			]],
+			"land": [0.3, false, [
+				[0.0, {"Cuerpo": {"f": 3}, "Ojos": {"p": Vector2(3, -4)}}],
+				[0.12, {"Cuerpo": {"f": 1}, "Ojos": {"p": Vector2(2, -5)}}],
+				[0.3, {}],
+			]],
 			# Golpe recibido: se aplasta con los ojos en X y se recupera.
 			"hurt": [0.35, false, [
 				[0.0, {"Cuerpo": {"f": 3, "p": Vector2(-1, 0)}, "Ojos": {"f": 2, "p": Vector2(2, -4)}}],
