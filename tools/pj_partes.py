@@ -22,6 +22,10 @@ PAL = {
     "S": (242, 201, 160),   # piel
     "s": (217, 168, 130),   # piel en sombra
     "m": (170, 96, 80),     # boca
+    "k": (58, 40, 28),      # cinturón
+    "b": (170, 176, 184),   # hebilla
+    "P": (94, 62, 40),      # pantalón
+    "p": (70, 46, 30),      # pantalón en sombra
 }
 
 PARTES = {
@@ -39,7 +43,20 @@ PARTES = {
         ".OOssSmSSO",
         "..OOOOOOOO",
     ],
+    # Torso pequeño y ancho: camiseta verde con sombra a la izquierda y luz a la derecha,
+    # cinturón con hebilla y una fila de pantalón. Las manos y los pies van aparte.
+    "torso": [
+        "OOOOOOOO",
+        "OdGGGggO",
+        "OdGGGGgO",
+        "OkkbbkkO",
+        "OpPPPPPO",
+        "OOOOOOOO",
+    ],
 }
+
+# Dónde va cada pieza en el montaje de prueba (esquina superior izquierda, en píxeles).
+MONTAJE = {"cabeza": (0, 0), "torso": (2, 8)}
 
 
 def build(name):
@@ -85,8 +102,24 @@ def preview(name, im, z=24):
     out.save("shots/pj_%s.png" % name)
 
 
+def montaje(z=12):
+    """Todas las piezas hechas hasta ahora colocadas juntas (las posteriores tapan a las anteriores)."""
+    ims = {n: build(n) for n in PARTES}
+    w = max(MONTAJE[n][0] + ims[n].width for n in ims)
+    h = max(MONTAJE[n][1] + ims[n].height for n in ims)
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    for n in ["torso", "cabeza"]:
+        if n in ims:
+            im.alpha_composite(ims[n], MONTAJE[n])
+    big = im.resize((w * z, h * z), Image.NEAREST)
+    out = Image.new("RGBA", (big.width + 48, big.height + 48), (34, 30, 44, 255))
+    out.alpha_composite(big, (24, 24))
+    out.save("shots/pj_montaje.png")
+
+
 if __name__ == "__main__":
     names = sys.argv[1:] or list(PARTES)
     for n in names:
         preview(n, build(n))
         print(n, "->", os.path.join(OUT, n + ".png"))
+    montaje()
