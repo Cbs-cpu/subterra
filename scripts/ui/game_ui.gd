@@ -37,6 +37,7 @@ var t := 0.0
 
 func _ready() -> void:
 	layer = 20
+	scale = Vector2(2, 2)
 	draw_node = Node2D.new()
 	draw_node.draw.connect(_draw_ui)
 	add_child(draw_node)

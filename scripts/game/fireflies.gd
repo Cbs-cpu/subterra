@@ -24,7 +24,7 @@ func _process(dt: float) -> void:
 func _draw() -> void:
 	var col: Color = Color(BiomeLook.BG.get("pueblo" if world.is_town else world.biome, BiomeLook.BG["bosque"])[4])
 	var cam: Vector2 = world.camera.get_screen_center_position()
-	var view := Rect2(cam - Vector2(260, 150), Vector2(520, 300))
+	var view := Rect2(cam - Vector2(180, 110), Vector2(360, 220))
 	for m in motes:
 		var p: Vector2 = m["p"] + Vector2(sin(t * m["sp"] + m["ph"]) * 10.0, cos(t * m["sp"] * 0.7 + m["ph"]) * 8.0)
 		if not view.has_point(p):

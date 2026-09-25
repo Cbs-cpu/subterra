@@ -128,16 +128,16 @@ static func build(look: Dictionary, anim: String, i: int) -> Dictionary:
 		_leg(c, hip + Vector2i(-1, 0), p["bl"], pants.darkened(0.2), boots)
 		_leg(c, hip + Vector2i(1, 0), p["fl"], pants, boots)
 	# Torso.
-	var tx := 5 + lean
+	var tx := 4 + lean
 	var ty := 8 + bob
-	c.rect(tx, ty, 5, 5, cl[1])
-	c.rect(tx, ty, 5, 1, cl[2])
-	c.rect(tx + 3, ty + 1, 2, 4, cl[0])
-	c.rect(tx, ty + 4, 5, 1, cl[0].darkened(0.3))
+	c.rect(tx, ty, 6, 5, cl[1])
+	c.rect(tx, ty, 6, 1, cl[2])
+	c.rect(tx + 4, ty + 1, 2, 4, cl[0])
+	c.rect(tx, ty + 4, 6, 1, cl[0].darkened(0.3))
 	if body == "esqueleto":
-		c.rect(tx, ty, 5, 5, Color(0, 0, 0, 0))
+		c.rect(tx, ty, 6, 5, Color(0, 0, 0, 0))
 		for k in 3:
-			c.rect(tx, ty + k * 2, 5, 1, sk[2])
+			c.rect(tx, ty + k * 2, 6, 1, sk[2])
 		c.rect(tx + 2, ty, 1, 5, sk[1])
 	# Cabeza.
 	var hx := 3 + lean
@@ -188,20 +188,20 @@ static func _head(c: Pix, x: int, y: int, kind: String, sk: Array, hair: Color, 
 			c.rect(x + 5, y - 3, 2, 3, Color("#e0c03a"))
 			return
 	# Cabeza base (grande, estilo chibi).
-	c.rect(x, y, 8, 7, sk[1])
-	c.rect(x + 1, y, 6, 1, sk[2])
-	c.rect(x + 6, y + 1, 2, 5, sk[2])
-	c.rect(x, y + 6, 8, 1, sk[0])
+	c.rect(x, y, 9, 7, sk[1])
+	c.rect(x + 1, y, 7, 1, sk[2])
+	c.rect(x + 7, y + 1, 2, 5, sk[2])
+	c.rect(x, y + 6, 9, 1, sk[0])
 	c.px(x, y, Color(0, 0, 0, 0))
 	# Ojo mirando a la derecha.
 	if kind != "ciclope" and kind != "yelmo":
-		c.rect(x + 5, y + 3, 1, 2, eye)
-		c.px(x + 6, y + 3, Color(1, 1, 1, 0.9) if kind != "esqueleto" else eye)
+		c.rect(x + 6, y + 3, 1, 2, eye)
+		c.px(x + 7, y + 3, Color(1, 1, 1, 0.9) if kind != "esqueleto" else eye)
 	# Pelo (arriba y nuca).
 	if kind in ["normal", "orejas", "cicatriz", "runas", "antifaz", "corona", "ciclope"]:
-		c.rect(x, y - 1, 8, 2, hair)
+		c.rect(x, y - 1, 9, 2, hair)
 		c.rect(x - 1, y, 2, 5, hair)
-		c.px(x + 7, y, hair)
+		c.px(x + 8, y, hair)
 	match kind:
 		"orejas":
 			c.px(x - 2, y + 2, sk[1])

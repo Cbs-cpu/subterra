@@ -53,6 +53,7 @@ var noclip := false
 
 func _ready() -> void:
 	layer = 100
+	scale = Vector2(2, 2)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	draw_node = Node2D.new()
 	draw_node.draw.connect(_draw_console)

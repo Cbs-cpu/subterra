@@ -89,10 +89,11 @@ func _build_view() -> void:
 	bg_layer.layer = -10
 	add_child(bg_layer)
 	var bg := ColorRect.new()
-	bg.size = Vector2(480, 270)
+	bg.size = Vector2(Run.WORLD_RES)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg_mat = ShaderMaterial.new()
 	bg_mat.shader = preload("res://shaders/background.gdshader")
+	bg_mat.set_shader_parameter("screen", Vector2(Run.WORLD_RES))
 	BiomeLook.apply_bg(bg_mat, "pueblo" if is_town else biome)
 	bg.material = bg_mat
 	bg_layer.add_child(bg)
@@ -305,8 +306,8 @@ func _update_camera(dt: float) -> void:
 	# para ver amenazas), con un seguimiento suave que acelera si el jugador se aleja.
 	var look := Vector2.ZERO
 	if cam_target.is_local:
-		var m := get_viewport().get_mouse_position() - Vector2(240, 135)
-		look = Vector2(m.x * 0.45, m.y * 0.6).limit_length(120.0)
+		var m := get_viewport().get_mouse_position() - Vector2(Run.WORLD_RES) / 2.0
+		look = Vector2(m.x * 0.45, m.y * 0.6).limit_length(80.0)
 	var want: Vector2 = cam_target.center() + look + Vector2(0, -10)
 	var dist := camera.position.distance_to(want)
 	var k := clampf(dt * (4.5 + dist * 0.02), 0.0, 1.0)

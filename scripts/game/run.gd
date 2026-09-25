@@ -23,9 +23,35 @@ var finished := false
 var visited := {}
 var biome_kills := {}
 var local_peer := 1
+## El mundo se dibuja a 320x180 dentro de un SubViewport ampliado x3 (zoom 1,5x respecto a la
+## interfaz, que va a 480x270 x2); así todos los píxeles del juego son del mismo tamaño.
+const WORLD_RES := Vector2i(320, 180)
+const WORLD_SCALE := 3
+var world_box: SubViewportContainer
+var world_vp: SubViewport
+
+
+func _ensure_viewport() -> void:
+	if world_vp != null:
+		return
+	world_box = SubViewportContainer.new()
+	world_box.stretch = true
+	world_box.stretch_shrink = WORLD_SCALE
+	world_box.size = Vector2(WORLD_RES * WORLD_SCALE)
+	world_box.mouse_filter = Control.MOUSE_FILTER_PASS
+	world_box.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(world_box)
+	world_vp = SubViewport.new()
+	world_vp.size = WORLD_RES
+	world_vp.snap_2d_transforms_to_pixel = true
+	world_vp.snap_2d_vertices_to_pixel = true
+	world_vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_NEAREST
+	world_vp.handle_input_locally = false
+	world_box.add_child(world_vp)
 
 
 func setup(config: Dictionary, p_ui: GameUI) -> void:
+	_ensure_viewport()
 	ui = p_ui
 	ui.run = self
 	seed_value = config["seed"]
@@ -77,7 +103,7 @@ func enter_district(b: String) -> void:
 	var doors := [] if b == "nido" else Content.door_choices(district + 1, drng)
 	var map := DistrictGen.generate(seed_value * 97 + district * 13, b, district, doors, madman)
 	world = World.new()
-	add_child(world)
+	world_vp.add_child(world)
 	world.setup(self, map, seed_value + district * 7)
 	_spawn_heroes(map["spawn"])
 	if Net.is_client():
@@ -103,7 +129,7 @@ func enter_town(b: String) -> void:
 	next_biome = b
 	var map := DistrictGen.generate_town(seed_value * 31 + district, b)
 	world = World.new()
-	add_child(world)
+	world_vp.add_child(world)
 	world.setup(self, map, seed_value + district * 11)
 	_spawn_heroes(map["spawn"])
 	if Net.is_client():

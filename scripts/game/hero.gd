@@ -53,7 +53,7 @@ func setup_hero(w: Node, m: HeroModel, pid: int, local: bool) -> void:
 	peer_id = pid
 	is_local = local
 	net_id = pid
-	var l := Art.make_light(Color("#fff4e0"), 190.0 if local else 140.0, 1.8)
+	var l := Art.make_light(Color("#fff4e0"), 140.0 if local else 100.0, 1.8)
 	l.position = Vector2(0, -8)
 	add_child(l)
 

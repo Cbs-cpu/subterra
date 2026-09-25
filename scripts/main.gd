@@ -36,6 +36,7 @@ func _ready() -> void:
 	c_rolled = HeroModel.roll_stats(rng)
 	ui_layer = CanvasLayer.new()
 	ui_layer.layer = 30
+	ui_layer.scale = Vector2(2, 2)
 	add_child(ui_layer)
 	draw_node = Node2D.new()
 	draw_node.draw.connect(_draw_screen)
@@ -544,8 +545,8 @@ func _anim_test() -> void:
 		await get_tree().create_timer(0.07).timeout
 		await RenderingServer.frame_post_draw
 		var img := get_viewport().get_texture().get_image()
-		var sp: Vector2 = h.position - run.world.camera.get_screen_center_position() + Vector2(240, 135)
-		var r := Rect2i(int(sp.x) - 40, int(sp.y) - 40, 80, 50).intersection(Rect2i(0, 0, 480, 270))
+		var sp: Vector2 = (h.position - run.world.camera.get_screen_center_position() + Vector2(160, 90)) * 3.0
+		var r := Rect2i(int(sp.x) - 120, int(sp.y) - 120, 240, 150).intersection(Rect2i(0, 0, 960, 540))
 		img.get_region(r).save_png(ProjectSettings.globalize_path("res://shots/anim_%02d.png" % i))
 	get_tree().quit()
 
