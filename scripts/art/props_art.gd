@@ -17,6 +17,8 @@ const GRASS := {
 
 
 static func tree(biome: String, variant: int) -> ImageTexture:
+	if not biome in ["tundra", "volcan", "cantera"]:
+		return plant(biome, 58 + variant * 6, variant + 2)
 	var col: Array = TREE_COLORS.get(biome, TREE_COLORS["bosque"])
 	var c := Pix.new(28, 44)
 	var trunk := Color(col[3])
@@ -51,7 +53,7 @@ static func tree(biome: String, variant: int) -> ImageTexture:
 
 
 const PLANT_COLORS := {
-	"bosque": ["#1e5a2a", "#3a9a3a", "#8ae05a", "#2a6a2a"], "cienaga": ["#3a1a5a", "#6a2aa0", "#b07ae0", "#2a5a2a"],
+	"bosque": ["#4e9a2a", "#8ed04a", "#c8f47a", "#6a3a22"], "cienaga": ["#3a1a5a", "#6a2aa0", "#b07ae0", "#2a5a2a"],
 	"pradera": ["#6a1a3a", "#c03a5a", "#ff8aa0", "#4a6a2a"], "cavernas": ["#1a3a4a", "#2a6a7a", "#6ad0e0", "#2a4a4a"],
 	"tundra": ["#2a4a6a", "#6a9ac0", "#e0f4ff", "#3a5a6a"], "mazmorra": ["#3a3a2a", "#6a6a3a", "#b0b06a", "#3a3a2a"],
 	"volcan": ["#6a1a0a", "#c04a1a", "#ffb04a", "#3a1a14"], "cantera": ["#1a5a5a", "#2ab0a0", "#9af0e8", "#2a4a5a"],
@@ -62,32 +64,33 @@ const PLANT_COLORS := {
 ## Árbol alto de fondo: tronco fino con cojines de hojas redondeados, alternando lados.
 static func plant(biome: String, h: int, variant: int) -> ImageTexture:
 	var col: Array = PLANT_COLORS.get(biome, PLANT_COLORS["bosque"])
-	var c := Pix.new(24, h)
+	var c := Pix.new(28, h)
 	var trunk := Color(col[3]).darkened(0.1)
 	var leaf := Color(col[1])
 	var leaf_hi := Color(col[2])
 	var leaf_lo := Color(col[0])
-	var x := 11
+	var x := 13
 	for y in range(6, h):
-		c.px(x, y, trunk)
-		c.px(x + 1, y, trunk.darkened(0.35))
-		if (y + variant) % 9 == 0:
-			c.px(x - 1 if (y / 9) % 2 == 0 else x + 2, y, trunk.lightened(0.2))
+		var stripe := (y + variant) % 3 == 0
+		c.px(x - 1, y, trunk.lightened(0.1) if not stripe else trunk.darkened(0.3))
+		c.px(x, y, trunk.darkened(0.35) if stripe else trunk)
+		c.px(x + 1, y, trunk.darkened(0.5) if not stripe else trunk.darkened(0.2))
 	# Cojines de hojas.
 	var k := 0
-	for y in range(10 + variant % 4, h - 6, 9):
+	for y in range(11 + variant % 4, h - 6, 8):
 		var side := -1 if k % 2 == 0 else 1
-		var cx := x + side * 5 + (1 if side > 0 else 0)
-		c.ellipse(cx, y, 3.6, 2.2, leaf_lo)
-		c.ellipse(cx, y - 0.6, 3.2, 1.7, leaf)
-		c.rect(cx - 2, y - 2, 3, 1, leaf_hi)
+		var cx := x + side * 6 + (1 if side > 0 else 0)
+		c.ellipse(cx, y, 5.0, 3.0, leaf_lo)
+		c.ellipse(cx, y - 0.8, 4.6, 2.4, leaf)
+		c.rect(cx - 3, y - 3, 5, 1, leaf_hi)
+		c.rect(cx - 4, y - 2, 2, 1, leaf_hi)
 		c.line(x + (1 if side > 0 else 0), y + 1, cx - side * 2, y, trunk)
 		k += 1
 	# Copa.
-	c.ellipse(x + 0.5, 4, 5.5, 3.8, leaf_lo)
-	c.ellipse(x + 0.5, 3.5, 5, 3.2, leaf)
-	c.rect(x - 3, 1, 5, 1, leaf_hi)
-	c.rect(x - 4, 2, 2, 1, leaf_hi)
+	c.ellipse(x + 0.5, 5, 7.5, 4.8, leaf_lo)
+	c.ellipse(x + 0.5, 4.2, 7, 4.2, leaf)
+	c.rect(x - 4, 1, 8, 1, leaf_hi)
+	c.rect(x - 6, 2, 4, 1, leaf_hi)
 	c.outline(Color(leaf_lo.darkened(0.6)))
 	return c.tex()
 
@@ -112,7 +115,7 @@ static func _done(c: Pix) -> ImageTexture:
 
 
 static func rock(ore: String, biome: String) -> ImageTexture:
-	var c := Pix.new(18, 14)
+	var c := Pix.new(18, 16)
 	var base := "piedra"
 	if biome in ["tundra"]:
 		base = "hielo"
@@ -120,14 +123,18 @@ static func rock(ore: String, biome: String) -> ImageTexture:
 		base = "obsidiana"
 	elif biome == "cantera":
 		base = "cristal"
-	c.ellipse(9, 8, 8, 6, Pix.ramp(base, 1))
-	c.ellipse(8, 7, 6, 4.5, Pix.ramp(base, 2))
-	c.ellipse(6, 5, 2.5, 1.5, Pix.ramp(base, 3))
+	# Piedras en bloque, apiladas: dos abajo y una arriba.
+	for b in [[1, 8, 9, 8], [9, 9, 8, 7], [4, 2, 9, 7]]:
+		c.rect(b[0], b[1], b[2], b[3], Pix.ramp(base, 2))
+		c.rect(b[0], b[1], b[2], 2, Pix.ramp(base, 3))
+		c.rect(b[0], b[1] + b[3] - 2, b[2], 2, Pix.ramp(base, 1))
+		c.px(b[0], b[1], Color(0, 0, 0, 0))
+		c.px(b[0] + b[2] - 1, b[1], Color(0, 0, 0, 0))
 	var oc: String = ORE_COLORS.get(ore, "")
 	if oc != "":
-		for d in [Vector2i(10, 6), Vector2i(12, 9), Vector2i(6, 9), Vector2i(8, 4), Vector2i(13, 5)]:
-			c.rect(d.x, d.y, 2, 1, Color(oc))
-			c.px(d.x, d.y - 1, Color(oc).lightened(0.4))
+		for d in [Vector2i(6, 4), Vector2i(11, 11), Vector2i(3, 11), Vector2i(9, 5), Vector2i(14, 12)]:
+			c.rect(d.x, d.y, 2, 2, Color(oc))
+			c.px(d.x, d.y, Color(oc).lightened(0.45))
 	return _done(c)
 
 

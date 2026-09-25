@@ -51,7 +51,7 @@ func setup(w: Node, d: Dictionary) -> void:
 func rect() -> Rect2:
 	match kind:
 		"arbol": return Rect2(position.x - 8, position.y - 40, 16, 40)
-		"roca": return Rect2(position.x - 9, position.y - 13, 18, 13)
+		"roca": return Rect2(position.x - 9, position.y - 15, 18, 15)
 		"hierba": return Rect2(position.x - 7, position.y - 10, 14, 10)
 		"luz_bicho": return Rect2(position.x - 7, position.y - 7, 14, 14)
 		"colmena": return Rect2(position.x - 8, position.y - 18, 16, 18)
@@ -186,17 +186,19 @@ func _draw() -> void:
 	var sx := sin(t * 60.0) * 1.5 if shake_t > 0.0 else 0.0
 	match kind:
 		"arbol":
-			draw_texture(Art.tree(world.biome, variant), Vector2(-14 + sx, -44))
+			var tt := Art.tree(world.biome, variant)
+			draw_texture(tt, Vector2(-tt.get_width() / 2.0 + sx, -tt.get_height()))
 		"roca":
-			draw_texture(Art.rock(ore, world.biome), Vector2(-9 + sx, -14))
+			draw_texture(Art.rock(ore, world.biome), Vector2(-9 + sx, -16))
 		"hierba":
 			draw_texture(Art.grass(world.biome, int(t * 1.5 + variant)), Vector2(-7, -10))
 		"luz_bicho":
 			var c := _elem_col()
 			var p := Vector2(sin(t * 1.3 + variant) * 6.0, cos(t * 1.7 + variant) * 4.0)
-			draw_circle(p, 6.0 + sin(t * 4.0), Color(c.r, c.g, c.b, 0.18))
-			draw_circle(p, 3.0, Color(c.r, c.g, c.b, 0.5))
-			draw_circle(p, 1.5, Color(1, 1, 1, 0.9))
+			draw_circle(p, 3.5 + sin(t * 4.0) * 0.8, Color(c.r, c.g, c.b, 0.14))
+			draw_rect(Rect2(p.round() - Vector2(1, 1), Vector2(2, 2)), Color(c.r, c.g, c.b, 0.9))
+			if int(t * 3.0 + variant) % 3 == 0:
+				draw_rect(Rect2(p.round() + Vector2(-2, 0), Vector2(1, 1)), Color(1, 1, 1, 0.7))
 		"cofre":
 			draw_texture(Art.chest(golden, open), Vector2(-8, -13))
 			if golden and not open and int(t * 3.0) % 3 == 0:

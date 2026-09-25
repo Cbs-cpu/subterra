@@ -29,7 +29,7 @@ func _draw() -> void:
 	var sway := roundf(sin(t * 1.2) * 1.0)
 	if kind == "planta":
 		draw_set_transform(Vector2(sway * 0.0, 0), 0.0, Vector2.ONE)
-		draw_texture(Art.plant(biome, h, v), Vector2(-12 + sway, -h))
+		draw_texture(Art.plant(biome, h, v), Vector2(-14 + sway, -h))
 	else:
 		draw_texture(Art.vine(biome, h, v), Vector2(-4 + sway, 0))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

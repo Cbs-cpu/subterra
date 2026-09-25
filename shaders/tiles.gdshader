@@ -27,15 +27,20 @@ vec4 shade(vec2 px) {
 	bool up_air = tile(t + vec2(0.0, -1.0)) != 1;
 
 	if (m == 0 || (m == 2 && lp.y > 5.0)) {
-		// Aire: musgo o raíces que cuelgan del sólido de arriba.
-		int above = tile(t + vec2(0.0, -1.0));
-		if (above == 1) {
-			float col = floor(px.x / 2.0);
-			float len = floor(hash(vec2(col, t.y * 3.1)) * 7.0) - 2.0;
-			if (lp.y < len) {
-				return vec4(mix(c_dirt2.rgb, c_top2.rgb, 0.35) * (1.0 - lp.y * 0.08), 1.0);
-			}
+		// Aire: borde de musgo "peludo" que sobresale de los sólidos vecinos (los 4 lados),
+		// más musgo/raíces colgando bajo los techos.
+		float hh = hash(floor(px / vec2(1.0, 1.0)) + t * 3.0);
+		float col2 = floor(px.x / 2.0);
+		if (tile(t + vec2(0.0, 1.0)) == 1 && lp.y >= 13.0) {
+			float tuft = floor(hash(vec2(col2, t.y * 7.0)) * 4.0);
+			if (16.0 - lp.y <= tuft) return vec4(tuft >= 3.0 ? c_top.rgb : c_top2.rgb, 1.0);
 		}
+		if (tile(t + vec2(0.0, -1.0)) == 1) {
+			float len = floor(hash(vec2(col2, t.y * 3.1)) * 7.0) - 2.0;
+			if (lp.y < len) return vec4(mix(c_dirt2.rgb, c_top2.rgb, 0.55) * (1.0 - lp.y * 0.07), 1.0);
+		}
+		if (tile(t + vec2(-1.0, 0.0)) == 1 && lp.x < 2.0 && hh > 0.45 + lp.x * 0.25) return vec4(c_top2.rgb * 0.8, 1.0);
+		if (tile(t + vec2(1.0, 0.0)) == 1 && lp.x > 13.0 && hh > 0.45 + (15.0 - lp.x) * 0.25) return vec4(c_top2.rgb * 0.7, 1.0);
 		return vec4(0.0);
 	}
 	if (m == 2) {
@@ -76,8 +81,8 @@ vec4 shade(vec2 px) {
 		}
 	}
 	// Bordes laterales hacia el aire: algo más oscuros, sin contorno negro.
-	if (tile(t + vec2(-1.0, 0.0)) != 1 && lp.x < 1.0) col *= 0.75;
-	if (tile(t + vec2(1.0, 0.0)) != 1 && lp.x > 14.0) col *= 0.65;
+	if (tile(t + vec2(-1.0, 0.0)) != 1 && lp.x < 2.0 && n2 > 0.4) col = c_top2.rgb * 0.75;
+	if (tile(t + vec2(1.0, 0.0)) != 1 && lp.x > 13.0 && n2 > 0.4) col = c_top2.rgb * 0.65;
 	if (tile(t + vec2(0.0, 1.0)) != 1 && lp.y > 14.0) col *= 0.6;
 	return vec4(col, 1.0);
 }

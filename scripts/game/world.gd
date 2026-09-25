@@ -129,6 +129,20 @@ func _build_view() -> void:
 	ff.world = self
 	sprite_layer.add_child(ff)
 	sprite_layer.move_child(ff, 0)
+	# Resplandor suave en lo brillante (hojas, luces), como el halo del original.
+	var we := WorldEnvironment.new()
+	var env := Environment.new()
+	env.background_mode = Environment.BG_CANVAS
+	env.glow_enabled = true
+	env.glow_intensity = 0.55
+	env.glow_bloom = 0.05
+	env.glow_hdr_threshold = 0.55
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
+	env.set_glow_level(1, 1.0)
+	env.set_glow_level(2, 0.8)
+	env.set_glow_level(3, 0.4)
+	we.environment = env
+	add_child(we)
 	var cm := CanvasModulate.new()
 	cm.color = BiomeLook.ambient("pueblo" if is_town else biome)
 	add_child(cm)

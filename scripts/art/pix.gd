@@ -131,20 +131,31 @@ func shade_region(x: int, y: int, rw: int, rh: int, amount: float = 0.2) -> void
 				px(xx, yy, p.darkened(amount))
 
 
-## Contorno de 1 px alrededor de todo lo opaco.
-func outline(col: Color = OUTLINE) -> void:
+## Sombreado de borde en vez de contorno negro: los píxeles opacos que tocan el vacío por
+## abajo o por la derecha se oscurecen y los que lo tocan por arriba se aclaran.
+## Con `ring` se añade además un contorno exterior del color dado (útil en la interfaz).
+func outline(col: Color = OUTLINE, ring := false) -> void:
 	var src := img.duplicate()
 	for yy in h:
 		for xx in w:
-			if src.get_pixel(xx, yy).a > 0.0:
+			var p = src.get_pixel(xx, yy)
+			if p.a <= 0.0:
+				if ring:
+					for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+						var nx: int = xx + d.x
+						var ny: int = yy + d.y
+						if nx >= 0 and ny >= 0 and nx < w and ny < h and src.get_pixel(nx, ny).a > 0.0:
+							img.set_pixel(xx, yy, col)
+							break
 				continue
-			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-				var nx: int = xx + d.x
-				var ny: int = yy + d.y
-				if nx >= 0 and ny >= 0 and nx < w and ny < h and src.get_pixel(nx, ny).a > 0.0 \
-						and src.get_pixel(nx, ny) != col:
-					img.set_pixel(xx, yy, col)
-					break
+			var below = yy + 1 >= h or src.get_pixel(xx, yy + 1).a <= 0.0
+			var right = xx + 1 >= w or src.get_pixel(xx + 1, yy).a <= 0.0
+			var above = yy == 0 or src.get_pixel(xx, yy - 1).a <= 0.0
+			var left = xx == 0 or src.get_pixel(xx - 1, yy).a <= 0.0
+			if below or right:
+				img.set_pixel(xx, yy, p.darkened(0.32))
+			elif above or left:
+				img.set_pixel(xx, yy, p.lightened(0.14))
 
 
 ## Dibuja texto en forma de filas con una leyenda de colores.

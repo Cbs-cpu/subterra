@@ -16,7 +16,7 @@ static func build(spr: String, pal: String, anim: String, i: int) -> ImageTextur
 	match spr:
 		"limo": c = _limo(pal if pal != "" else "verde", anim, t)
 		"arana": c = _arana(pal if pal != "" else "verde", anim, t)
-		"cerdo": c = _cuadrupedo("#e8909a", "#b0606a", anim, t, "cerdo")
+		"cerdo": c = _cuadrupedo("#f4a8bc", "#d07890", anim, t, "cerdo")
 		"jabali": c = _cuadrupedo(Pix.ramp(pal, 2).to_html() if pal != "" else "#7a5a3a", Pix.ramp(pal, 1).to_html() if pal != "" else "#4a3422", anim, t, "jabali")
 		"oveja": c = _cuadrupedo("#f0f0f4", "#b8b8c4", anim, t, "oveja")
 		"conejo": c = _conejo(anim, t)
@@ -45,15 +45,19 @@ static func build(spr: String, pal: String, anim: String, i: int) -> ImageTextur
 
 static func _limo(pal: String, anim: String, t: float) -> Pix:
 	var c := Pix.new(16, 14)
-	var squash := sin(t * TAU) * 1.5 if anim == "move" else sin(t * TAU) * 0.5
-	var rx := 6.0 + squash
-	var ry := 5.0 - squash
-	var cy := 13.0 - ry
-	c.ellipse(8, cy, rx, ry, Pix.ramp(pal, 2))
-	c.ellipse(8, cy + 1, rx - 1, ry - 1.5, Pix.ramp(pal, 1))
-	c.ellipse(6.5, cy - ry * 0.4, 1.8, 1.2, Pix.ramp(pal, 3))
-	c.rect(9, int(cy) - 1, 1, 2, Pix.OUTLINE)
-	c.rect(11, int(cy) - 1, 1, 2, Pix.OUTLINE)
+	var squash := sin(t * TAU) * 1.5 if anim == "move" else sin(t * TAU) * 0.6
+	var w := int(round(10.0 + squash))
+	var hgt := int(round(9.0 - squash))
+	var x0 := 8 - w / 2
+	var y0 := 14 - hgt
+	var body := Pix.ramp(pal, 2).lightened(0.15)
+	# Cuerpo casi cuadrado con esquinas redondeadas, brillo arriba y sombra abajo.
+	c.rect(x0, y0 + 1, w, hgt - 1, body)
+	c.rect(x0 + 1, y0, w - 2, 1, body)
+	c.rect(x0 + 1, y0 + 1, w - 3, 2, Pix.ramp(pal, 3).lightened(0.2))
+	c.rect(x0, y0 + hgt - 2, w, 2, Pix.ramp(pal, 1))
+	c.rect(x0 + w - 4, y0 + 4, 1, 2, Color("#1a1a1a"))
+	c.rect(x0 + w - 2, y0 + 4, 1, 2, Color("#1a1a1a"))
 	return c
 
 

@@ -3,7 +3,7 @@ extends RefCounted
 ## Paletas de tiles y fondos por bioma.
 
 const TILES := {
-	"bosque": ["#4a9a3a", "#2e6a2a", "#5e3e26", "#4a3020", "#2a1c16", "#9c6a3c", "#6e4a30"],
+	"bosque": ["#9ad84a", "#4e9a2a", "#1e3418", "#172a14", "#0c160c", "#6a4a2e", "#5a3a22"],
 	"cienaga": ["#6a4a9a", "#46307a", "#3a3a2a", "#2e2e22", "#1a1a16", "#6b5a3a", "#5a5a3a"],
 	"pradera": ["#d05a6a", "#9a3a4a", "#7a4a3a", "#5e3a2e", "#2e1c18", "#b07a4a", "#8a5a4a"],
 	"cavernas": ["#6a6a7a", "#4a4a5a", "#3a3a46", "#2e2e38", "#1a1a22", "#6a6a7a", "#56566a"],
@@ -13,7 +13,7 @@ const TILES := {
 	"cantera": ["#6ae0d0", "#3ab0a0", "#3a4a5a", "#2e3a4a", "#161e28", "#6a8a9a", "#8af0e8"],
 	"crater": ["#b08ae0", "#7a5aaa", "#2e2440", "#241c34", "#100c1a", "#6a5a8a", "#e0a0ff"],
 	"nido": ["#6a2a4a", "#4a1a34", "#2a1822", "#22121a", "#0e080c", "#5a3a4a", "#e05a9a"],
-	"pueblo": ["#7ab04a", "#4a8a3a", "#6e4a30", "#5a3a26", "#2a1c16", "#b08a5a", "#8a6a4a"],
+	"pueblo": ["#9ad84a", "#4e9a2a", "#3a2a1e", "#2e2016", "#16100a", "#8a6a44", "#6a4a2e"],
 }
 const BG := {
 	"bosque": ["#070e0b", "#101f14", "#0e1912", "#09110d", "#6ae07a"],
