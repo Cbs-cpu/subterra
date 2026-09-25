@@ -30,6 +30,17 @@ const BG := {
 }
 
 
+const AMBIENT := {
+	"bosque": "#232d2a", "cienaga": "#23202c", "pradera": "#2d2027", "cavernas": "#1c1c22", "tundra": "#2d3440",
+	"mazmorra": "#1a1817", "volcan": "#2d1c17", "cantera": "#1c2a2c", "crater": "#201a2c", "nido": "#23151d",
+	"pueblo": "#413e36",
+}
+
+
+static func ambient(biome: String) -> Color:
+	return Color(AMBIENT.get(biome, "#3a4a44"))
+
+
 static func apply_tiles(mat: ShaderMaterial, biome: String) -> void:
 	var c: Array = TILES.get(biome, TILES["bosque"])
 	var keys := ["c_top", "c_top2", "c_dirt", "c_dirt2", "c_deep", "c_plat", "c_speck"]

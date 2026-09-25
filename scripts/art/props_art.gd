@@ -50,6 +50,54 @@ static func tree(biome: String, variant: int) -> ImageTexture:
 	return _done(c)
 
 
+const PLANT_COLORS := {
+	"bosque": ["#1e5a2a", "#3a9a3a", "#8ae05a", "#2a6a2a"], "cienaga": ["#3a1a5a", "#6a2aa0", "#b07ae0", "#2a5a2a"],
+	"pradera": ["#6a1a3a", "#c03a5a", "#ff8aa0", "#4a6a2a"], "cavernas": ["#1a3a4a", "#2a6a7a", "#6ad0e0", "#2a4a4a"],
+	"tundra": ["#2a4a6a", "#6a9ac0", "#e0f4ff", "#3a5a6a"], "mazmorra": ["#3a3a2a", "#6a6a3a", "#b0b06a", "#3a3a2a"],
+	"volcan": ["#6a1a0a", "#c04a1a", "#ffb04a", "#3a1a14"], "cantera": ["#1a5a5a", "#2ab0a0", "#9af0e8", "#2a4a5a"],
+	"crater": ["#3a1a6a", "#7a3ac0", "#e0a0ff", "#2a2a4a"], "nido": ["#4a0e2a", "#8a1a4a", "#ff4a8a", "#2a0e1a"],
+}
+
+
+## Planta alta de fondo: tallo en zigzag con pares de hojas anchas.
+static func plant(biome: String, h: int, variant: int) -> ImageTexture:
+	var col: Array = PLANT_COLORS.get(biome, PLANT_COLORS["bosque"])
+	var c := Pix.new(16, h)
+	var stem := Color(col[3])
+	var x := 8
+	for y in range(h - 1, 2, -1):
+		if y % 5 == 0:
+			x += 1 if (y / 5 + variant) % 2 == 0 else -1
+		c.px(x, y, stem)
+		c.px(x + 1, y, stem.darkened(0.3))
+		if y % 7 == (variant % 7) and y < h - 3:
+			var d := 1 if (y / 7) % 2 == 0 else -1
+			for k in 5:
+				c.px(x + d * (k + 1), y - k / 2, Color(col[1]))
+				c.px(x + d * (k + 1), y - k / 2 + 1, Color(col[0]))
+			c.px(x + d * 5, y - 3, Color(col[2]))
+	# Copa superior.
+	c.ellipse(x + 0.5, 3, 3, 2.5, Color(col[1]))
+	c.px(x, 2, Color(col[2]))
+	c.px(x - 2, 4, Color(col[0]))
+	c.px(x + 3, 4, Color(col[0]))
+	return c.tex()
+
+
+## Enredadera que cuelga del techo.
+static func vine(biome: String, h: int, variant: int) -> ImageTexture:
+	var col: Array = PLANT_COLORS.get(biome, PLANT_COLORS["bosque"])
+	var c := Pix.new(8, h)
+	for y in h:
+		var x := 3 + roundi(sin(y * 0.35 + variant) * 1.5)
+		c.px(x, y, Color(col[0]))
+		if (y + variant) % 4 == 0:
+			c.px(x + 1, y, Color(col[1]))
+			c.px(x - 1, y + 1, Color(col[1]))
+	c.px(3, h - 1, Color(col[2]))
+	return c.tex()
+
+
 static func _done(c: Pix) -> ImageTexture:
 	c.outline()
 	return c.tex()

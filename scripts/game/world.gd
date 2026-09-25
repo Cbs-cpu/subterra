@@ -67,6 +67,11 @@ func setup(r: Node, m: Dictionary, seed_value: int) -> void:
 	_build_view()
 	for e in m["entities"]:
 		_spawn_from_data(e)
+	if is_town:
+		for x in range(6, mw - 4, 10):
+			var lamp := Art.make_light(Color("#ffd28a"), 90.0, 0.9)
+			lamp.position = Vector2(x * T + 8, (mh - 5) * T)
+			layer_back.add_child(lamp)
 	for d in m.get("doors", []):
 		var n := Npc.new()
 		n.setup(self, {"kind": "puerta", "biome": d["biome"], "pos": d["pos"]})
@@ -109,6 +114,9 @@ func _build_view() -> void:
 	add_child(layer_front)
 	fx = Fx.new()
 	add_child(fx)
+	var cm := CanvasModulate.new()
+	cm.color = BiomeLook.ambient("pueblo" if is_town else biome)
+	add_child(cm)
 	camera = Camera2D.new()
 	camera.process_callback = Camera2D.CAMERA2D_PROCESS_PHYSICS
 	camera.limit_left = 0
@@ -126,6 +134,11 @@ func _nid() -> int:
 
 func _spawn_from_data(e: Dictionary) -> void:
 	match e["kind"]:
+		"planta", "enredadera":
+			var dn := Deco.new()
+			dn.setup(self, e)
+			layer_back.add_child(dn)
+			layer_back.move_child(dn, 0)
 		"arbol", "roca", "hierba", "luz_bicho", "cofre", "colmena", "huevo_arana":
 			var n := WorldNode.new()
 			n.setup(self, e)
@@ -289,8 +302,9 @@ func spawn_enemy(id: String, pos: Vector2) -> Enemy:
 		e.unstuck()
 	if e.boss and id != "guardian":
 		boss_node = e
-		run.notify(Content.enemy(id)["name"], Color("#ff9a5a"))
-		Sfx.play("jefe_aviso")
+		if time_in > 1.0:
+			run.notify("¡" + Content.enemy(id)["name"] + "!", Color("#ff9a5a"))
+			Sfx.play("jefe_aviso")
 	return e
 
 

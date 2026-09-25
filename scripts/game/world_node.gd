@@ -27,6 +27,17 @@ func setup(w: Node, d: Dictionary) -> void:
 	elem = d.get("elem", "fuego")
 	golden = d.get("golden", false)
 	variant = int(position.x) % 7
+	if kind == "luz_bicho":
+		var l := Art.make_light(_elem_col(), 46.0, 1.1)
+		add_child(l)
+	elif kind == "roca" and ore in ["diamante", "ceniza", "oro"]:
+		var l2 := Art.make_light(Color(PropsArt.ORE_COLORS[ore]), 26.0, 0.7)
+		l2.position = Vector2(0, -6)
+		add_child(l2)
+	elif kind == "cofre" and golden:
+		var l3 := Art.make_light(Color("#ffd04a"), 30.0, 0.7)
+		l3.position = Vector2(0, -6)
+		add_child(l3)
 	match kind:
 		"arbol": hp = 4
 		"roca": hp = 3 + ORE_REQ.get(ore, 0)
@@ -163,6 +174,9 @@ func interact(hero: Node) -> bool:
 
 func _break() -> void:
 	dead = true
+	for ch in get_children():
+		if ch is PointLight2D:
+			ch.enabled = false
 	world.fx.burst(position + Vector2(0, -8), Color("#9c6a3c") if kind == "arbol" else Color("#8b8b9c"), 8)
 
 

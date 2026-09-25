@@ -39,5 +39,10 @@ void fragment() {
 	vec2 q = floor((p + vec2(cam.x * 0.3, cam.y * 0.1)) / 3.0);
 	float h = hash(q.x * 13.0 + q.y * 7.0);
 	if (h > 0.9985) col = mix(col, glow.rgb, 0.7 + 0.3 * sin(time * 2.0 + h * 50.0));
+	// Pared del fondo: textura de roca en bloques de 4 px, muy oscura.
+	vec2 w = floor((p + cam * 0.5) / 4.0);
+	float wn = hash(w.x * 7.0 + w.y * 131.0);
+	col *= 0.8 + 0.25 * wn;
+	col *= 0.75;
 	COLOR = vec4(col, 1.0);
 }

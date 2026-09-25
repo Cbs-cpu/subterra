@@ -43,6 +43,14 @@ func setup(w: Node, d: Dictionary) -> void:
 	shop = d.get("shop", "")
 	position = d["pos"]
 	line_i = world.rng.randi() % LINES.size()
+	if kind == "puerta":
+		var l := Art.make_light(Color(Content.biome(biome)["door"]), 80.0, 1.2)
+		l.position = Vector2(0, -24)
+		add_child(l)
+	elif kind == "altar":
+		var l2 := Art.make_light(Color("#c0a0ff"), 50.0, 0.8)
+		l2.position = Vector2(0, -30)
+		add_child(l2)
 
 
 func rect() -> Rect2:
@@ -106,12 +114,12 @@ func _draw() -> void:
 		"vecino":
 			var fr: Dictionary = Art.npc_frame("vecino", "run" if walk_dir != 0.0 else "idle", int(t * (9.0 if walk_dir != 0.0 else 3.0)))
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2(-1 if walk_dir < 0.0 else 1, 1))
-			draw_texture(fr["tex"], Vector2(-10, -26))
+			draw_texture(fr["tex"], Vector2(-7, -18))
 			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 			if talk_t > 0.0:
 				PixelFont.draw_centered(self, 0, -40, PixelFont.wrap(LINES[line_i], 34), Color("#f4f0e0"))
 		_:
 			draw_texture(Art.stall(kind), Vector2(-28, -44))
 			var fr2: Dictionary = Art.npc_frame(kind, "idle", int(t * 3.0))
-			draw_texture(fr2["tex"], Vector2(-10, -30))
+			draw_texture(fr2["tex"], Vector2(-7, -22))
 			PixelFont.draw_centered(self, 0, -54, label(), Color("#f4e0b0"))

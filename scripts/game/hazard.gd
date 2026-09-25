@@ -23,6 +23,9 @@ func setup(w: Node, d: Dictionary) -> void:
 	position = d["pos"]
 	origin = position
 	phase = world.rng.randf() * TAU
+	var glow := {"columna_fuego": "#ff8a2a", "bola_cosmica": "#e05aff", "cuchilla_cristal": "#6af0e0", "espora": "#a05ae0"}
+	if glow.has(kind):
+		add_child(Art.make_light(Color(glow[kind]), 60.0, 1.0))
 	if kind == "carambano":
 		# Se cuelga del techo más cercano.
 		var y := position.y - 8.0

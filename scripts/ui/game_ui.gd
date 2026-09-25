@@ -5,9 +5,11 @@ extends CanvasLayer
 
 signal quit_to_menu
 
-const SLOT := 18
-const COL_BG := Color("#1a1420")
-const COL_BORDER := Color("#6a5a8a")
+const SLOT := 20
+const COL_BG := Color("#2a1e16")
+const COL_BORDER := Color("#5a4030")
+const COL_DARK := Color("#120c08")
+const COL_SLOT := Color("#1c140e")
 const COL_TXT := Color("#f0e8d8")
 const COL_DIM := Color("#8a8098")
 const COL_GOLD := Color("#f0c03a")
@@ -184,9 +186,9 @@ func _unhandled_input(ev: InputEvent) -> void:
 			scroll = maxi(0, scroll - 1)
 	if ev is InputEventMouseButton and ev.pressed and panel == "" and local_hero() != null:
 		if ev.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			act({"op": "hand", "i": (local_hero().model.inv.hand + 1) % 8})
+			act({"op": "hand", "i": (local_hero().model.inv.hand + 1) % Inventory.HOTBAR})
 		elif ev.button_index == MOUSE_BUTTON_WHEEL_UP:
-			act({"op": "hand", "i": (local_hero().model.inv.hand + 7) % 8})
+			act({"op": "hand", "i": (local_hero().model.inv.hand + Inventory.HOTBAR - 1) % Inventory.HOTBAR})
 
 
 func _click(m: Vector2, button: int, shift: bool) -> void:
@@ -228,9 +230,10 @@ func _buttons() -> Array:
 		"altar":
 			out.append({"r": Rect2(170, 150, 140, 16), "f": func(_b, _s): act({"op": "altar", "id": npc.altar_id})})
 		"habilidad":
-			for k in skill_opts.size():
-				var sid: String = skill_opts[k]
-				out.append({"r": Rect2(60 + k * 125, 80, 115, 110), "f": func(_b, _s): _pick_skill(sid)})
+			var types := ["guerrero", "mago", "explorador"]
+			for k in 3:
+				var tp: String = types[k]
+				out.append({"r": Rect2(314 + k * 52, 90, 36, 30), "f": func(_b, _s): _pick_path(tp)})
 		"pausa":
 			var items := _pause_items()
 			for k in items.size():
@@ -246,6 +249,19 @@ func _buttons() -> Array:
 				var a: String = keys[k]
 				out.append({"r": Rect2(120, 36 + k * 13, 240, 12), "f": func(_b, _s): rebinding = a})
 	return out
+
+
+func _pick_path(tp: String) -> void:
+	var h := hero if hero else local_hero()
+	var pool := []
+	for sk in Content.SKILLS:
+		if sk["type"] == tp and (not h.model.skills.has(sk["id"]) or sk["id"] == "lobo"):
+			pool.append(sk["id"])
+	if pool.is_empty():
+		for sk in Content.SKILLS:
+			if not h.model.skills.has(sk["id"]):
+				pool.append(sk["id"])
+	_pick_skill(pool[run.rng.randi() % pool.size()])
 
 
 func _pick_skill(id: String) -> void:
@@ -360,57 +376,59 @@ func _npc_list() -> Array:
 # --- Geometría -------------------------------------------------------------------------------
 
 func _inv_origin() -> Vector2:
-	return Vector2(160, 70)
-
+	return Vector2(8, 118)
 
 func _inv_rect() -> Rect2:
-	return Rect2(20, 30, 440, 200)
-
+	return Rect2(4, 14, 120, 216)
 
 func _slot_rect(i: int) -> Rect2:
+	if i < Inventory.HOTBAR:
+		return Rect2(6 + i * (SLOT + 2), 16, SLOT, SLOT)
+	var k := i - Inventory.HOTBAR
 	var o := _inv_origin()
-	var x := i % 8
-	var y := i / 8
-	return Rect2(o.x + x * (SLOT + 2), o.y + y * (SLOT + 2) + (4 if y > 0 else 0), SLOT, SLOT)
-
+	return Rect2(o.x + (k % 5) * (SLOT + 2) - 2, o.y + (k / 5) * (SLOT + 2), SLOT, SLOT)
 
 func _equip_rect(k: int) -> Rect2:
-	return Rect2(40 + (k % 2) * 22, 70 + (k / 2) * 22, SLOT, SLOT)
-
-
-# --- Dibujo -----------------------------------------------------------------------------------
+	# Columna izquierda: cabeza, cuerpo, escudo. Columna derecha: anillos.
+	if k < 3:
+		return Rect2(6, 44 + k * 22, SLOT, SLOT)
+	return Rect2(102, 44 + (k - 3) * 22, SLOT, SLOT)
 
 func _panel(r: Rect2, title := "") -> void:
 	var c := draw_node
-	c.draw_rect(r.grow(2), Color("#0e0a12"))
+	c.draw_rect(r.grow(2), COL_DARK)
 	c.draw_rect(r.grow(1), COL_BORDER)
 	c.draw_rect(r, COL_BG)
-	c.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), COL_BORDER.lightened(0.3))
+	c.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), COL_BORDER.lightened(0.25))
+	c.draw_rect(Rect2(r.position, Vector2(1, r.size.y)), COL_BORDER.lightened(0.15))
+	c.draw_rect(Rect2(r.position + Vector2(0, r.size.y - 1), Vector2(r.size.x, 1)), COL_DARK)
 	if title != "":
-		PixelFont.draw_centered(c, r.get_center().x, r.position.y + 5, title, COL_GOLD, 2)
-
+		PixelFont.draw_centered(c, r.get_center().x, r.position.y + 5, title, COL_TXT)
 
 func _draw_stack(pos: Vector2, s, show_n := true) -> void:
 	var c := draw_node
 	if s == null:
 		return
-	c.draw_texture(Art.icon(s["id"]), pos + Vector2(3, 3))
+	c.draw_texture(Art.icon(s["id"]), pos + Vector2(4, 4))
 	var q: int = s.get("q", 0)
 	if q > 0:
-		c.draw_rect(Rect2(pos, Vector2(SLOT, 1)), QCOL[q])
+		c.draw_rect(Rect2(pos + Vector2(1, 1), Vector2(2, 2)), QCOL[q])
 	if show_n and s["n"] > 1:
-		PixelFont.draw(c, pos + Vector2(SLOT - PixelFont.width(str(s["n"])) - 1, SLOT - 6), str(s["n"]), COL_TXT)
+		PixelFont.draw(c, pos + Vector2(SLOT - PixelFont.width(str(s["n"])), SLOT - 7), str(s["n"]), COL_TXT)
 	if s.has("dur"):
 		var maxd: int = ItemDB.get_item(s["id"]).get("dur", 1)
 		var k := clampf(float(s["dur"]) / maxd, 0.0, 1.0)
-		c.draw_rect(Rect2(pos + Vector2(2, SLOT - 2), Vector2((SLOT - 4) * k, 1)), Color("#5ae05a").lerp(Color("#e05a5a"), 1.0 - k))
-
+		if k < 1.0:
+			c.draw_rect(Rect2(pos + Vector2(3, SLOT - 3), Vector2(SLOT - 6, 1)), Color(0, 0, 0, 0.6))
+			c.draw_rect(Rect2(pos + Vector2(3, SLOT - 3), Vector2((SLOT - 6) * k, 1)), Color("#5ae05a").lerp(Color("#e05a5a"), 1.0 - k))
 
 func _slot_box(r: Rect2, hl := false, sel := false) -> void:
 	var c := draw_node
-	c.draw_rect(r, Color("#2a2232") if not hl else Color("#3a3050"))
-	c.draw_rect(r, Color("#4a3e5a") if not sel else COL_GOLD, false, 1.0)
-
+	c.draw_rect(r.grow(1), COL_DARK)
+	c.draw_rect(r, COL_SLOT if not hl else Color("#241a12"))
+	c.draw_rect(Rect2(r.position + Vector2(0, r.size.y - 1), Vector2(r.size.x, 1)), COL_BORDER.darkened(0.2))
+	if sel:
+		c.draw_rect(r.grow(1), Color("#d8c8a0"), false, 1.0)
 
 func _draw_ui() -> void:
 	var h := local_hero()
@@ -438,102 +456,117 @@ func _draw_ui() -> void:
 
 func _bar(pos: Vector2, w: float, k: float, col: Color, label: String) -> void:
 	var c := draw_node
-	c.draw_rect(Rect2(pos - Vector2(1, 1), Vector2(w + 2, 7)), Color("#0e0a12"))
-	c.draw_rect(Rect2(pos, Vector2(w, 5)), col.darkened(0.6))
-	c.draw_rect(Rect2(pos, Vector2(w * clampf(k, 0.0, 1.0), 5)), col)
-	c.draw_rect(Rect2(pos, Vector2(w * clampf(k, 0.0, 1.0), 1)), col.lightened(0.4))
-	PixelFont.draw(c, pos + Vector2(w + 4, 0), label, COL_TXT)
-
+	PixelFont.draw(c, pos + Vector2(w - PixelFont.width(label), -9), label, COL_TXT)
+	c.draw_rect(Rect2(pos - Vector2(1, 1), Vector2(w + 2, 6)), COL_DARK)
+	c.draw_rect(Rect2(pos, Vector2(w, 4)), col.darkened(0.7))
+	c.draw_rect(Rect2(pos, Vector2(w * clampf(k, 0.0, 1.0), 4)), col)
+	c.draw_rect(Rect2(pos, Vector2(w * clampf(k, 0.0, 1.0), 1)), col.lightened(0.35))
 
 func _draw_hud(h: Hero) -> void:
 	var c := draw_node
 	var m := h.model
-	_bar(Vector2(6, 6), 70, float(m.hp) / m.max_hp(), Color("#e0304a"), "%d/%d" % [m.hp, m.max_hp()])
-	_bar(Vector2(6, 15), 54, m.mana / m.max_mana(), Color("#3a7ae0"), "%d/%d" % [int(m.mana), m.max_mana()])
-	# Estamina.
-	for k in m.max_stamina():
-		var full := k < int(m.stamina)
-		c.draw_rect(Rect2(6 + k * 6, 24, 5, 3), Color("#6ae05a") if full else Color("#2a4a2a"))
-	# Hambre.
-	for k in m.max_hunger():
-		var on := k < int(ceil(m.hunger))
-		var col := Color("#d07a3a") if on else Color("#3a2a22")
-		if m.hunger <= 0.0 and int(t * 4.0) % 2 == 0:
-			col = Color("#e0304a")
-		c.draw_rect(Rect2(6 + k * 6, 30, 5, 4), col)
-		c.draw_rect(Rect2(7 + k * 6, 30, 2, 1), col.lightened(0.3))
-	# Nivel y experiencia.
+	# Nivel, experiencia y monedas (arriba a la izquierda).
+	PixelFont.draw(c, Vector2(6, 4), "Nv.%d" % m.level, COL_TXT)
 	var need := HeroModel.xp_to_next(m.level)
-	c.draw_rect(Rect2(6, 37, 70, 2), Color("#1a3a1e"))
-	c.draw_rect(Rect2(6, 37, 70.0 * m.xp / need, 2), Color("#8aff9a"))
-	PixelFont.draw(c, Vector2(6, 42), "nv %d" % m.level, Color("#8aff9a"))
-	c.draw_texture(Art.coin_icon(), Vector2(34, 39))
-	PixelFont.draw(c, Vector2(47, 42), str(m.coins), COL_GOLD)
+	var xr := Rect2(40, 4, 80, 7)
+	c.draw_rect(xr.grow(1), COL_DARK)
+	c.draw_rect(xr, Color("#2a2a2a"))
+	c.draw_rect(Rect2(xr.position, Vector2(xr.size.x * m.xp / need, xr.size.y)), Color("#5ab04a"))
+	PixelFont.draw_centered(c, xr.get_center().x, xr.position.y, "%d/%d" % [m.xp, need], COL_TXT)
+	c.draw_texture(Art.coin_icon(), Vector2(124, 1))
+	PixelFont.draw(c, Vector2(137, 4), "x%d" % m.coins, COL_TXT)
+	# Barra rápida.
+	if panel != "inventario" and panel != "comprador":
+		for i in Inventory.HOTBAR:
+			var r := _slot_rect(i)
+			_slot_box(r, false, i == m.inv.hand)
+			_draw_stack(r.position, m.inv.slots[i])
+	# Vida, maná, hambre y estamina (arriba a la derecha).
+	_stat_row(Vector2(350, 13), float(m.hp) / m.max_hp(), Color("#d02a3a"), "%d/%d" % [m.hp, m.max_hp()], "vida")
+	_stat_row(Vector2(350, 33), m.mana / m.max_mana(), Color("#2a6ae0"), "%d/%d" % [int(m.mana), m.max_mana()], "mana")
+	var hc := Color("#a0643a") if m.hunger > 0.0 or int(t * 4.0) % 2 == 0 else Color("#e02a3a")
+	_stat_row(Vector2(420, 13), m.hunger / m.max_hunger(), hc, "%d/%d" % [int(ceil(m.hunger)), m.max_hunger()], "hambre")
+	_stat_row(Vector2(420, 33), m.stamina / m.max_stamina(), Color("#d8b02a"), "%d/%d" % [int(m.stamina), m.max_stamina()], "estamina")
 	# Distrito y temporizador de la Ceniza.
 	var w: World = run.world
-	var title: String = "Pueblo" if w.is_town else "%s  ·  distrito %d" % [Content.biome(w.biome)["name"], run.district]
-	PixelFont.draw(c, Vector2(474 - PixelFont.width(title), 6), title, COL_TXT)
+	var title: String = "Pueblo" if w.is_town else "Distrito %d: %s" % [run.district, Content.biome(w.biome)["name"]]
+	PixelFont.draw(c, Vector2(474 - PixelFont.width(title), 46), title, Color("#e0d8c0"))
 	var tl := w.time_left()
 	if tl >= 0.0:
-		var col2 := Color("#c0b8d0") if tl > 30.0 else (Color("#ff5a7a") if int(t * 4.0) % 2 == 0 else Color("#ffd0d8"))
-		var s := "ceniza %d:%02d" % [int(maxf(tl, 0.0)) / 60, int(maxf(tl, 0.0)) % 60] if tl > 0.0 else "¡los guardianes!"
-		PixelFont.draw(c, Vector2(474 - PixelFont.width(s), 15), s, col2)
-	# Barra rápida.
-	var ox := 240 - 4 * (SLOT + 2)
-	for i in 8:
-		var r := Rect2(ox + i * (SLOT + 2), 247, SLOT, SLOT)
-		_slot_box(r, false, i == m.inv.hand)
-		_draw_stack(r.position, m.inv.slots[i])
-		PixelFont.draw(c, r.position + Vector2(1, 1), str(i + 1), Color(1, 1, 1, 0.35))
-	var held = m.inv.held()
-	if held != null:
-		var nm: String = ItemDB.get_item(held["id"]).get("name", "")
-		PixelFont.draw_centered(c, 240, 238, nm, QCOL[held.get("q", 0)])
-	# Habilidades.
+		var col2 := Color("#a098b0") if tl > 30.0 else (Color("#ff5a7a") if int(t * 4.0) % 2 == 0 else Color("#ffd0d8"))
+		var s := "Ceniza %d:%02d" % [int(maxf(tl, 0.0)) / 60, int(maxf(tl, 0.0)) % 60] if tl > 0.0 else "¡Guardianes!"
+		PixelFont.draw(c, Vector2(474 - PixelFont.width(s), 56), s, col2)
+	# Habilidades (Z X C).
 	for k in m.skills.size():
 		var sid: String = m.skills[k]
-		var r2 := Rect2(6 + k * 22, 247, SLOT, SLOT)
+		var r2 := Rect2(6 + k * 22, 40, SLOT, SLOT)
 		var sk := Content.find(Content.SKILLS, sid)
-		var tc = {"guerrero": Color("#c0302a"), "mago": Color("#3a5ae0"), "explorador": Color("#3aa04a")}[sk["type"]]
-		c.draw_rect(r2, tc.darkened(0.3))
-		c.draw_rect(r2, tc.lightened(0.2), false, 1.0)
-		PixelFont.draw_centered(c, r2.get_center().x, r2.position.y + 3, sk["name"].substr(0, 3), COL_TXT)
-		PixelFont.draw_centered(c, r2.get_center().x, r2.position.y + 11, ["Z", "X", "C"][k], Color(1, 1, 1, 0.6))
-		var cd: float = m.skill_cd.get(sid, 0.0)
-		if cd > 0.0:
-			var k2 := cd / float(sk["cd"])
-			c.draw_rect(Rect2(r2.position, Vector2(SLOT, SLOT * k2)), Color(0, 0, 0, 0.6))
+		var tc: Color = {"guerrero": Color("#b02a2a"), "mago": Color("#2a4ab0"), "explorador": Color("#2a902a")}[sk["type"]]
+		if panel != "inventario":
+			c.draw_rect(r2.grow(1), COL_DARK)
+			c.draw_rect(r2, tc)
+			c.draw_rect(Rect2(r2.position, Vector2(SLOT, 1)), tc.lightened(0.4))
+			c.draw_texture(Art.icon(_skill_icon(sk["type"])), r2.position + Vector2(4, 4))
+			PixelFont.draw(c, r2.position + Vector2(1, 13), ["Z", "X", "C"][k], COL_TXT)
+			var cd: float = m.skill_cd.get(sid, 0.0)
+			if cd > 0.0:
+				c.draw_rect(Rect2(r2.position, Vector2(SLOT, SLOT * cd / float(sk["cd"]))), Color(0, 0, 0, 0.65))
 	# Mejoras activas.
 	var bx := 6
 	for b in m.buffs:
 		var label: String = b.get("flag", b.get("stat", ""))
-		PixelFont.draw(c, Vector2(bx, 52), "%s %d" % [label, int(b["t"])], Color("#fff08a"))
-		bx += PixelFont.width(label) + 16
+		PixelFont.draw(c, Vector2(bx, 64), "%s %d" % [label, int(b["t"])], Color("#fff08a"))
+		bx += PixelFont.width(label) + 22
+	# Objeto en la mano.
+	var held = m.inv.held()
+	if held != null and panel == "":
+		PixelFont.draw_centered(c, 240, 258, ItemDB.get_item(held["id"]).get("name", ""), QCOL[held.get("q", 0)])
 	# Jefe.
 	var bn = w.boss_node
 	if bn != null and is_instance_valid(bn) and not bn.dead and bn.center().distance_to(h.center()) < 420.0:
-		c.draw_rect(Rect2(139, 21, 202, 7), Color("#0e0a12"))
-		c.draw_rect(Rect2(140, 22, 200.0 * bn.hp / bn.max_hp, 5), Color("#c0302a"))
+		c.draw_rect(Rect2(159, 21, 162, 7), COL_DARK)
+		c.draw_rect(Rect2(160, 22, 160.0 * bn.hp / bn.max_hp, 5), Color("#c0302a"))
 		PixelFont.draw_centered(c, 240, 30, bn.data["name"], Color("#ffb0a0"))
-	# Cooperativo: compañeros abatidos.
-	var y := 60
+	# Cooperativo.
+	var y := 76
 	for p in w.players:
 		if p != h:
 			PixelFont.draw(c, Vector2(6, y), "%s %d/%d%s" % [p.model.name, p.model.hp, p.model.max_hp(), " ABATIDO" if p.downed else ""],
 				Color("#ff8a8a") if p.downed else COL_DIM)
-			y += 8
-	# Pista de interacción.
+			y += 10
 	var hint := _hint(h)
-	if hint != "":
-		PixelFont.draw_centered(c, 240, 222, hint, Color("#fff08a"))
-	# Cartel de entrada.
+	if hint != "" and panel == "":
+		PixelFont.draw_centered(c, 240, 232, hint, Color("#fff08a"))
 	if card.size() > 0:
 		var a := clampf(card["t"], 0.0, 1.0)
-		PixelFont.draw_centered(c, 240, 90, card["title"], Color(1, 0.9, 0.6, a), 3)
-		PixelFont.draw_centered(c, 240, 116, card["sub"], Color(0.9, 0.85, 0.95, a))
+		PixelFont.draw_centered(c, 240, 96, card["title"], Color(1, 0.92, 0.7, a), 2)
+		PixelFont.draw_centered(c, 240, 118, card["sub"], Color(0.9, 0.85, 0.8, a))
 	if run.party_dead_t >= 0.0:
-		PixelFont.draw_centered(c, 240, 120, "Todo el grupo ha caído", Color("#ff5a5a"), 2)
+		PixelFont.draw_centered(c, 240, 124, "Todo el grupo ha caído", Color("#ff5a5a"), 2)
 
+
+func _stat_row(pos: Vector2, k: float, col: Color, label: String, icon: String) -> void:
+	_bar(pos, 44, k, col, label)
+	var c := draw_node
+	var ip := pos + Vector2(48, -8)
+	match icon:
+		"vida":
+			c.draw_rect(Rect2(ip + Vector2(1, 1), Vector2(3, 3)), Color("#e02a3a"))
+			c.draw_rect(Rect2(ip + Vector2(5, 1), Vector2(3, 3)), Color("#e02a3a"))
+			c.draw_rect(Rect2(ip + Vector2(1, 3), Vector2(7, 3)), Color("#e02a3a"))
+			c.draw_rect(Rect2(ip + Vector2(3, 6), Vector2(3, 2)), Color("#e02a3a"))
+		"mana":
+			c.draw_rect(Rect2(ip + Vector2(3, 0), Vector2(3, 9)), Color("#4ab0f0"))
+			c.draw_rect(Rect2(ip + Vector2(1, 3), Vector2(7, 3)), Color("#4ab0f0"))
+		"hambre":
+			c.draw_texture(Art.icon("carne_asada"), ip + Vector2(-2, -2))
+		"estamina":
+			c.draw_rect(Rect2(ip + Vector2(2, 0), Vector2(3, 5)), Color("#f0c02a"))
+			c.draw_rect(Rect2(ip + Vector2(4, 4), Vector2(3, 5)), Color("#f0c02a"))
+
+
+func _skill_icon(kind: String) -> String:
+	return {"guerrero": "espada_hierro", "mago": "baston_rayo", "explorador": "arco"}.get(kind, "espada_hierro")
 
 func _hint(h: Hero) -> String:
 	var hc := h.center()
@@ -604,7 +637,7 @@ func _draw_inv_grid(h: Hero) -> void:
 	var inv := h.model.inv
 	for i in Inventory.SIZE:
 		var r := _slot_rect(i)
-		_slot_box(r, i < 8, i == selected or i == craft_a)
+		_slot_box(r, i < Inventory.HOTBAR, i == selected or i == craft_a)
 		if i == craft_a:
 			draw_node.draw_rect(r.grow(1), Color("#6ae05a"), false, 1.0)
 		_draw_stack(r.position, inv.slots[i])
@@ -615,32 +648,41 @@ func _draw_inventory() -> void:
 	if h == null:
 		return
 	var m := h.model
-	_panel(_inv_rect(), "Inventario")
+	_panel(Rect2(4, 40, 120, 190))
 	_draw_inv_grid(h)
+	# Ficha del personaje entre las dos columnas de equipo.
+	var sr := Rect2(30, 44, 68, 64)
+	draw_node.draw_rect(sr, COL_SLOT)
+	draw_node.draw_rect(sr, COL_BORDER, false, 1.0)
+	PixelFont.draw_centered(draw_node, sr.get_center().x, sr.position.y + 4, m.name.substr(0, 10), COL_TXT)
+	var y := sr.position.y + 16
+	var keys := ["hp", "atk", "dex", "mag"]
+	var short := ["VID", "ATQ", "DES", "MAG"]
+	for i in 4:
+		var g: int = m.growth[keys[i]]
+		var gc: Color = [Color("#e07a6a"), COL_TXT, Color("#8ae07a")][g]
+		PixelFont.draw_centered(draw_node, sr.get_center().x, y, "%s: %d" % [short[i], m.stat(keys[i])], gc)
+		y += 11
 	var eq := Inventory.EQUIP_SLOTS
-	var names := ["cabeza", "cuerpo", "escudo", "anillo", "anillo"]
-	PixelFont.draw(draw_node, Vector2(36, 60), "Equipo", COL_GOLD)
+	var names := ["cab", "cue", "esc", "ani", "ani"]
 	for k in eq.size():
 		var r := _equip_rect(k)
 		_slot_box(r)
 		if m.inv.equip[eq[k]] == null:
-			PixelFont.draw_centered(draw_node, r.get_center().x, r.position.y + 7, names[k].substr(0, 3), Color(1, 1, 1, 0.25))
+			PixelFont.draw_centered(draw_node, r.get_center().x, r.position.y + 7, names[k], Color(1, 1, 1, 0.2), 1, false)
 		_draw_stack(r.position, m.inv.equip[eq[k]])
-	# Estadísticas.
-	var y := 142
-	PixelFont.draw(draw_node, Vector2(30, y), "%s  ·  %s" % [m.name, Content.race(m.race_id)["name"]], COL_TXT)
-	y += 10
-	for pair in [["Vida", "hp"], ["Ataque", "atk"], ["Destreza", "dex"], ["Magia", "mag"]]:
-		var g: int = m.growth[pair[1]]
-		var gc = [Color("#e05a5a"), COL_TXT, Color("#6ae05a")][g]
-		PixelFont.draw(draw_node, Vector2(30, y), "%s %d" % [pair[0], m.stat(pair[1])], gc)
-		y += 8
-	PixelFont.draw(draw_node, Vector2(30, y + 2), "Rasgos: " + ", ".join(m.traits.map(func(tr): return Content.find(Content.TRAITS, tr)["name"])), COL_DIM)
-	PixelFont.draw(draw_node, Vector2(160, 160), "Clic: mover  ·  Clic der.: poner uno / equipar", COL_DIM)
-	PixelFont.draw(draw_node, Vector2(160, 168), "Mayús + clic en dos objetos: combinar", Color("#8aff9a"))
-	PixelFont.draw(draw_node, Vector2(160, 176), "Clic fuera con algo seleccionado: tirar", COL_DIM)
-	# Libro de recetas (conocidas).
-	PixelFont.draw(draw_node, Vector2(160, 190), "Recetas descubiertas: %d/%d" % [Game.known_recipes().size(), Recipes.pairs().size()], COL_GOLD)
+	# Sombrero (informativo).
+	var hr := Rect2(102, 88, SLOT, SLOT)
+	_slot_box(hr)
+	var ht = Art.hat(m.hat_id)
+	if ht:
+		draw_node.draw_texture(ht, hr.position + Vector2(3, 4))
+	PixelFont.draw(draw_node, Vector2(8, 184), PixelFont.wrap("Rasgos: " + ", ".join(m.traits.map(func(tr): return Content.find(Content.TRAITS, tr)["name"])), 19), COL_DIM)
+	PixelFont.draw(draw_node, Vector2(8, 206), "Recetas: %d/%d" % [Game.known_recipes().size(), Recipes.pairs().size()], Color("#d8b870"))
+	# Consejo inferior.
+	var tip := "Mayús + clic en dos objetos para combinar. Consejo: prueba madera + madera"
+	draw_node.draw_rect(Rect2(0, 252, 480, 12), Color(0, 0, 0, 0.55))
+	PixelFont.draw_centered(draw_node, 240, 255, tip, Color("#e8e0c8"))
 	var mp := draw_node.get_local_mouse_position()
 	for i in Inventory.SIZE:
 		if _slot_rect(i).has_point(mp):
@@ -648,7 +690,6 @@ func _draw_inventory() -> void:
 	for k in eq.size():
 		if _equip_rect(k).has_point(mp):
 			_tooltip(mp, m.inv.equip[eq[k]])
-
 
 func _draw_shop() -> void:
 	var h := hero if hero else local_hero()
@@ -711,23 +752,20 @@ func _draw_altar() -> void:
 
 
 func _draw_skill_pick() -> void:
-	draw_node.draw_rect(Rect2(0, 0, 480, 270), Color(0, 0, 0, 0.6))
-	PixelFont.draw_centered(draw_node, 240, 50, "Elige una habilidad", COL_GOLD, 2)
-	for k in skill_opts.size():
-		var s := Content.find(Content.SKILLS, skill_opts[k])
-		var r := Rect2(60 + k * 125, 80, 115, 110)
-		var tc = {"guerrero": Color("#c0302a"), "mago": Color("#3a5ae0"), "explorador": Color("#3aa04a")}[s["type"]]
-		var hov := r.has_point(draw_node.get_local_mouse_position())
-		draw_node.draw_rect(r, tc.darkened(0.55 if not hov else 0.35))
-		draw_node.draw_rect(r, tc.lightened(0.3), false, 1.0)
-		PixelFont.draw_centered(draw_node, r.get_center().x, r.position.y + 8, s["name"], COL_TXT, 1)
-		PixelFont.draw_centered(draw_node, r.get_center().x, r.position.y + 20, s["type"], tc.lightened(0.4))
-		PixelFont.draw_centered(draw_node, r.get_center().x, r.position.y + 36, PixelFont.wrap(s["desc"], 26), COL_TXT)
-		var info := "recarga %ds" % int(s["cd"])
-		if float(s["dur"]) > 0.0:
-			info += "  ·  dura %ds" % int(s["dur"])
-		PixelFont.draw_centered(draw_node, r.get_center().x, r.end.y - 12, info, COL_DIM)
-
+	var r := Rect2(300, 70, 170, 64)
+	_panel(r, "Elige una rama")
+	var types := ["guerrero", "mago", "explorador"]
+	var cols := [Color("#b02a2a"), Color("#2a4ab0"), Color("#2a902a")]
+	var mp := draw_node.get_local_mouse_position()
+	for k in 3:
+		var b := Rect2(r.position.x + 14 + k * 52, r.position.y + 20, 36, 30)
+		var hov := b.has_point(mp)
+		draw_node.draw_rect(b.grow(1), COL_DARK)
+		draw_node.draw_rect(b, cols[k].lightened(0.15) if hov else cols[k])
+		draw_node.draw_rect(Rect2(b.position, Vector2(b.size.x, 2)), cols[k].lightened(0.45))
+		draw_node.draw_texture_rect(Art.icon(_skill_icon(types[k])), Rect2(b.position + Vector2(6, 3), Vector2(24, 24)), false)
+		if hov:
+			PixelFont.draw_centered(draw_node, 385, r.end.y + 6, types[k].capitalize(), cols[k].lightened(0.5))
 
 func _draw_pause() -> void:
 	draw_node.draw_rect(Rect2(0, 0, 480, 270), Color(0, 0, 0, 0.6))

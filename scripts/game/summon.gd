@@ -81,7 +81,7 @@ func _draw() -> void:
 	match kind:
 		"subdito":
 			var fr: Dictionary = Art.npc_frame("rey_esqueleto", "idle", int(t * 4.0))
-			draw_texture(fr["tex"], Vector2(-10, -26 + sin(t * 3.0) * 2.0), Color(0.7, 1.0, 0.8, 0.9))
+			draw_texture(fr["tex"], Vector2(-7, -18 + sin(t * 3.0) * 2.0), Color(0.7, 1.0, 0.8, 0.9))
 		"fatuo":
 			draw_circle(Vector2.ZERO, 9.0 + sin(t * 5.0), Color(0.4, 1.0, 0.6, 0.2))
 			draw_circle(Vector2.ZERO, 4.0, Color(0.6, 1.0, 0.8, 0.8))

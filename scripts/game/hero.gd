@@ -44,7 +44,7 @@ var pickpocket_cd := 0.0
 
 
 func _init() -> void:
-	size = Vector2(10, 22)
+	size = Vector2(8, 15)
 
 
 func setup_hero(w: Node, m: HeroModel, pid: int, local: bool) -> void:
@@ -53,6 +53,9 @@ func setup_hero(w: Node, m: HeroModel, pid: int, local: bool) -> void:
 	peer_id = pid
 	is_local = local
 	net_id = pid
+	var l := Art.make_light(Color("#fff0d8"), 180.0 if local else 120.0, 1.3)
+	l.position = Vector2(0, -8)
+	add_child(l)
 
 
 # --- Tick -----------------------------------------------------------------------
@@ -481,48 +484,50 @@ func _draw() -> void:
 		col = Color(2.5, 2.5, 2.5)
 	if downed:
 		draw_set_transform(Vector2(0, -4), -PI / 2.0 * facing, Vector2.ONE)
-		draw_texture(tex, Vector2(-10, -13), Color(1, 1, 1, 0.8))
+		draw_texture(tex, Vector2(-7, -9), Color(1, 1, 1, 0.8))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-		PixelFont.draw_centered(self, 0, -30, "¡ayuda!" if int(anim_t * 2.0) % 2 == 0 else "", Color("#ffd24a"))
+		PixelFont.draw_centered(self, 0, -26, "¡ayuda!" if int(anim_t * 2.0) % 2 == 0 else "", Color("#ffd24a"))
 		return
 	var sc := Vector2(squash.x * facing, squash.y)
 	draw_set_transform(Vector2.ZERO, 0.0, sc)
 	# Brillo de habilidades activas.
 	if model.has_buff("furia"):
-		draw_rect(Rect2(-7, -24, 14, 24), Color(1, 0.2, 0.1, 0.18 + 0.1 * sin(anim_t * 10.0)))
-	draw_texture(tex, Vector2(-10, -26), col)
+		draw_rect(Rect2(-6, -17, 12, 17), Color(1, 0.2, 0.1, 0.18 + 0.1 * sin(anim_t * 10.0)))
+	draw_texture(tex, Vector2(-7, -18), col)
 	# Sombrero.
 	var hat = Art.hat(model.hat_id)
 	if hat:
 		var hd: Vector2i = fr["head"]
-		draw_texture(hat, Vector2(hd.x - 10 - 7 + 1, -26 + hd.y - 9), col)
-	# Objeto en la mano.
+		draw_texture(hat, Vector2(hd.x - 7 - 7 + 1, -18 + hd.y - 10), col)
+	# Objeto en la mano: se calcula mirando a la derecha y luego se voltea.
 	var h = model.inv.held()
 	if h != null and ItemDB.get_item(h["id"]).get("slot", "") == "":
 		var hand: Vector2i = fr["hand"]
-		var hp := Vector2(hand.x - 10, hand.y - 26)
-		var rot := -0.6
+		var hp := Vector2(hand.x - 7, hand.y - 18)
+		var rot := 0.0
 		var wc: String = ItemDB.get_item(h["id"]).get("wclass", "")
 		if attack_t > 0.0:
 			var k := 1.0 - attack_t / attack_len
-			rot = lerpf(-2.4, 1.3, ease(k, 0.4))
+			rot = lerpf(-1.5, 1.9, ease(k, 0.5))
 		elif wc == "arco" or wc == "baston":
-			var ang := aim_angle
-			rot = ang if facing > 0 else PI - ang
-			rot += PI / 4.0
-		draw_set_transform(hp * sc + Vector2.ZERO, rot * facing, sc)
-		draw_texture(Art.icon(h["id"]), Vector2(-3, -10), col)
+			var ang := aim_angle if facing > 0 else PI - aim_angle
+			rot = wrapf(ang + PI / 4.0, -PI, PI)
+		elif not on_floor:
+			rot = -0.4
+		var tr := Transform2D(0.0, sc, 0.0, Vector2.ZERO) * Transform2D(rot, Vector2.ONE, 0.0, hp)
+		draw_set_transform_matrix(tr)
+		draw_texture(Art.icon(h["id"]), Vector2(-2, -10), col)
 		draw_set_transform(Vector2.ZERO, 0.0, sc)
 	# Estela del golpe.
 	if attack_t > 0.0 and attack_kind != "puño":
 		var k2 := 1.0 - attack_t / attack_len
 		if k2 > 0.3 and k2 < 0.8:
-			draw_arc(Vector2(4, -12), 16.0, -1.8, 1.0, 10, Color(1, 1, 1, 0.5 * (1.0 - k2)), 2.0)
+			draw_arc(Vector2(3, -9), 13.0, -1.8, 1.0, 10, Color(1, 1, 1, 0.5 * (1.0 - k2)), 2.0)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# Compañero.
 	var cp = Art.companion(model.companion_id, int(companion_t * 6.0))
 	if cp:
-		var off := Vector2(-facing * 14.0, -32.0 + sin(companion_t * 3.0) * 3.0)
+		var off := Vector2(-facing * 12.0, -24.0 + sin(companion_t * 3.0) * 3.0)
 		draw_texture(cp, off - Vector2(6, 6))
 	if world.players.size() > 1:
-		PixelFont.draw_centered(self, 0, -40, model.name, Color("#c8f0ff") if is_local else Color("#ffe0a0"))
+		PixelFont.draw_centered(self, 0, -34, model.name, Color("#c8f0ff") if is_local else Color("#ffe0a0"))

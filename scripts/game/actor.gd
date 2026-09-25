@@ -55,6 +55,9 @@ func physics_move(dt: float) -> void:
 	for _i in steps:
 		_move_x(part.x)
 		_move_y(part.y)
+	# Apoyado exactamente sobre una superficie (p. ej. sin velocidad vertical durante el dash).
+	if not on_floor and vel.y >= 0.0 and drop_t <= 0.0 and _floor_below(position + Vector2(0, 1)):
+		on_floor = true
 	# Pegado al suelo al bajar pendientes de 1 tile (evita "saltitos").
 	if was_floor and not on_floor and vel.y >= 0.0 and drop_t <= 0.0:
 		for k in range(1, 5):

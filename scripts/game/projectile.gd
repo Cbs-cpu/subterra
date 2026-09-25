@@ -25,6 +25,14 @@ var dead := false
 var t := 0.0
 var net_id := 0
 var boosted := false
+var trail: Array = []
+var trail_t := 0.0
+var glow := Color.TRANSPARENT
+
+const GLOW := {"bola_fuego": "#ff8a2a", "bola_fuego_enemiga": "#ff6a2a", "rayo": "#fff08a", "escarcha": "#8ae0ff",
+	"esquirla": "#8ae0ff", "meteoro": "#8aff4a", "espora": "#c07aff", "bola_magica": "#c07aff",
+	"bola_cosmica_enemiga": "#ff6ad0", "bola_oscura": "#e04a9a", "laser": "#ff6aa0", "hoja_gigante": "#c0f0ff",
+	"flecha": "#fff0c0"}
 
 
 func setup(w: Node, d: Dictionary) -> void:
@@ -47,11 +55,21 @@ func setup(w: Node, d: Dictionary) -> void:
 	cause = d.get("cause", kind)
 	orbit = d.get("orbit")
 	orbit_a = d.get("orbit_a", 0.0)
+	if GLOW.has(kind):
+		glow = Color(GLOW[kind])
+		if kind != "flecha":
+			add_child(Art.make_light(glow, 40.0 if kind != "rayo" else 90.0, 1.2))
 
 
 func tick(dt: float) -> void:
 	t += dt
 	life -= dt
+	trail_t += dt
+	if trail_t > 0.025 and glow.a > 0.0:
+		trail_t = 0.0
+		trail.push_front(global_position)
+		if trail.size() > (10 if kind != "flecha" else 4):
+			trail.pop_back()
 	if life <= 0.0:
 		_end(false)
 		return
@@ -137,6 +155,13 @@ func _end(hit_wall: bool) -> void:
 
 func _draw() -> void:
 	var ang := vel.angle()
+	for i in trail.size():
+		var k := 1.0 - float(i) / trail.size()
+		var p: Vector2 = trail[i] - global_position
+		var c := glow
+		c.a = k * 0.8
+		var sz := 1.0 + k * (1.5 if kind != "flecha" else 0.0)
+		draw_rect(Rect2((p - Vector2(sz, sz) / 2.0).round(), Vector2(sz, sz)), c)
 	match kind:
 		"flecha", "flecha_enemiga":
 			draw_set_transform(Vector2.ZERO, ang, Vector2.ONE)

@@ -2,10 +2,11 @@ class_name Humanoid
 extends RefCounted
 ## Generador de personajes humanoides por "marioneta": piernas, brazos, torso y cabeza con
 ## animaciones completas (reposo 4, correr 6, salto, caída, ataque 3, daño, dash, abatido).
-## Lienzo de 20x26 mirando a la derecha; los pies en y=25.
+## Proporciones chibi: cabeza grande y cuerpo pequeño. Lienzo de 14x18 mirando a la derecha;
+## los pies en y=17.
 
-const W := 20
-const H := 26
+const W := 14
+const H := 18
 const ANIMS := {"idle": 4, "run": 6, "jump": 1, "fall": 1, "attack": 3, "hurt": 1, "dash": 1, "down": 1}
 
 const SKINS := {
@@ -46,28 +47,28 @@ static func pose(anim: String, i: int) -> Dictionary:
 			p["ba"] = -0.15
 		"run":
 			var ph := i / 6.0 * TAU
-			p["fl"] = Vector2i(roundi(sin(ph) * 3.0), roundi(max(0.0, cos(ph)) * 2.0))
-			p["bl"] = Vector2i(roundi(-sin(ph) * 3.0), roundi(max(0.0, -cos(ph)) * 2.0))
+			p["fl"] = Vector2i(roundi(sin(ph) * 2.0), roundi(maxf(0.0, cos(ph)) * 1.5))
+			p["bl"] = Vector2i(roundi(-sin(ph) * 2.0), roundi(maxf(0.0, -cos(ph)) * 1.5))
 			p["fa"] = -sin(ph) * 1.0
 			p["ba"] = sin(ph) * 1.0
 			p["bob"] = -1 if abs(sin(ph)) < 0.6 else 0
 			p["lean"] = 0
 		"jump":
-			p["fl"] = Vector2i(2, 3)
+			p["fl"] = Vector2i(1, 2)
 			p["bl"] = Vector2i(-1, 1)
 			p["fa"] = 2.5
 			p["ba"] = 2.0
 			p["bob"] = -1
 		"fall":
-			p["fl"] = Vector2i(2, 0)
-			p["bl"] = Vector2i(-2, 1)
+			p["fl"] = Vector2i(1, 0)
+			p["bl"] = Vector2i(-1, 1)
 			p["fa"] = 1.4
 			p["ba"] = -1.4
 		"attack":
 			p["fa"] = [2.8, 1.6, 0.5][clampi(i, 0, 2)]
 			p["ba"] = -0.5
-			p["fl"] = Vector2i(2, 0)
-			p["bl"] = Vector2i(-2, 0)
+			p["fl"] = Vector2i(1, 0)
+			p["bl"] = Vector2i(-1, 0)
 			p["lean"] = [0, 1, 1][clampi(i, 0, 2)]
 		"hurt":
 			p["fa"] = 2.0
@@ -75,8 +76,8 @@ static func pose(anim: String, i: int) -> Dictionary:
 			p["lean"] = -1
 			p["hy"] = 1
 		"dash":
-			p["fl"] = Vector2i(-3, 1)
-			p["bl"] = Vector2i(-4, 2)
+			p["fl"] = Vector2i(-2, 1)
+			p["bl"] = Vector2i(-3, 1)
 			p["fa"] = -1.4
 			p["ba"] = -1.2
 			p["lean"] = 2
@@ -109,39 +110,38 @@ static func build(look: Dictionary, anim: String, i: int) -> Dictionary:
 		boots = sk[0]
 	var bob: int = p["bob"]
 	var lean: int = p["lean"]
-	var hip := Vector2i(10 + lean / 2, 18 + bob)
-	var shoulder := Vector2i(10 + lean, 12 + bob)
+	var hip := Vector2i(7 + lean / 2, 12 + bob)
+	var shoulder := Vector2i(7 + lean, 9 + bob)
 
 	# Brazo trasero.
 	_arm(c, shoulder + Vector2i(-1, 0), p["ba"], cl[0], sk[0])
 	# Piernas.
 	if body == "flotante":
-		# Cola de humo en lugar de piernas.
-		for k in 6:
+		for k in 5:
 			var wv := 3 - k / 2
-			c.rect(9 - wv / 2 + roundi(sin(anim.hash() + i + k) * 0.8), hip.y + k, max(1, wv), 1, cl[1] if k % 2 == 0 else cl[2])
+			c.rect(6 - wv / 2 + roundi(sin(anim.hash() + i + k) * 0.8), hip.y + k, maxi(1, wv), 1, cl[1] if k % 2 == 0 else cl[2])
 	elif body == "tunica":
-		c.rect(7 + lean / 2, hip.y - 1, 7, 6, cl[1])
-		c.rect(6 + lean / 2, hip.y + 4, 9, 3, cl[0])
-		c.rect(8 + p["fl"].x / 2, 24, 2, 1, boots)
+		c.rect(4 + lean / 2, hip.y - 1, 6, 4, cl[1])
+		c.rect(3 + lean / 2, hip.y + 3, 8, 2, cl[0])
+		c.rect(5 + p["fl"].x / 2, 17, 2, 1, boots)
 	else:
 		_leg(c, hip + Vector2i(-1, 0), p["bl"], pants.darkened(0.2), boots)
 		_leg(c, hip + Vector2i(1, 0), p["fl"], pants, boots)
 	# Torso.
-	var tx := 7 + lean
-	var ty := 11 + bob
-	c.rect(tx, ty, 6, 8, cl[1])
-	c.rect(tx, ty, 6, 1, cl[2])
-	c.rect(tx + 4, ty + 1, 2, 7, cl[0])
-	c.rect(tx, ty + 6, 6, 1, cl[0].darkened(0.3))  # cinturón
+	var tx := 5 + lean
+	var ty := 8 + bob
+	c.rect(tx, ty, 5, 5, cl[1])
+	c.rect(tx, ty, 5, 1, cl[2])
+	c.rect(tx + 3, ty + 1, 2, 4, cl[0])
+	c.rect(tx, ty + 4, 5, 1, cl[0].darkened(0.3))
 	if body == "esqueleto":
-		c.rect(tx, ty, 6, 8, Color(0, 0, 0, 0))
-		for k in 4:
-			c.rect(tx, ty + k * 2, 6, 1, sk[2])
-		c.rect(tx + 2, ty, 2, 8, sk[1])
+		c.rect(tx, ty, 5, 5, Color(0, 0, 0, 0))
+		for k in 3:
+			c.rect(tx, ty + k * 2, 5, 1, sk[2])
+		c.rect(tx + 2, ty, 1, 5, sk[1])
 	# Cabeza.
-	var hx := 6 + lean
-	var hy := 3 + bob + int(p["hy"])
+	var hx := 3 + lean
+	var hy := 1 + bob + int(p["hy"])
 	_head(c, hx, hy, head, sk, hair, cl, look)
 	# Brazo delantero (por encima).
 	var hand := _arm(c, shoulder + Vector2i(1, 0), p["fa"], cl[2], sk[1])
@@ -150,18 +150,17 @@ static func build(look: Dictionary, anim: String, i: int) -> Dictionary:
 
 
 static func _leg(c: Pix, hip: Vector2i, off: Vector2i, col: Color, boot: Color) -> void:
-	var foot := Vector2i(hip.x + off.x, 25 - off.y)
-	c.line(hip.x, hip.y, foot.x, foot.y - 1, col, 2)
-	c.rect(foot.x - 1, foot.y - 1, 3, 2, boot)
-	c.px(foot.x + 1, foot.y - 1, boot.lightened(0.2))
+	var foot := Vector2i(hip.x + off.x, 17 - off.y)
+	c.line(hip.x, hip.y, foot.x, foot.y - 1, col, 1)
+	c.px(hip.x + 1, hip.y, col)
+	c.rect(foot.x, foot.y, 2, 1, boot)
 
 
 ## Dibuja un brazo con el ángulo dado (0 = hacia abajo, positivo = hacia delante). Devuelve la mano.
 static func _arm(c: Pix, sh: Vector2i, ang: float, sleeve: Color, skin: Color) -> Vector2i:
-	var hand := Vector2i(sh.x + roundi(sin(ang) * 5.0), sh.y + roundi(cos(ang) * 5.0))
-	var mid := Vector2i((sh.x + hand.x) / 2, (sh.y + hand.y) / 2)
-	c.line(sh.x, sh.y, mid.x, mid.y, sleeve, 2)
-	c.line(mid.x, mid.y, hand.x, hand.y, skin, 2)
+	var hand := Vector2i(sh.x + roundi(sin(ang) * 3.0), sh.y + roundi(cos(ang) * 3.0))
+	c.line(sh.x, sh.y, hand.x, hand.y, sleeve, 1)
+	c.px(hand.x, hand.y, skin)
 	return hand
 
 
@@ -188,12 +187,12 @@ static func _head(c: Pix, x: int, y: int, kind: String, sk: Array, hair: Color, 
 			c.rect(x + 1, y - 3, 2, 3, Color("#3aa04a"))
 			c.rect(x + 5, y - 3, 2, 3, Color("#e0c03a"))
 			return
-	# Cabeza base.
-	c.rect(x, y, 8, 8, sk[1])
-	c.rect(x, y, 8, 1, sk[2])
-	c.rect(x + 6, y + 1, 2, 6, sk[2])
-	c.rect(x, y + 6, 8, 2, sk[0])
-	c.rect(x + 1, y + 7, 7, 1, sk[1])
+	# Cabeza base (grande, estilo chibi).
+	c.rect(x, y, 8, 7, sk[1])
+	c.rect(x + 1, y, 6, 1, sk[2])
+	c.rect(x + 6, y + 1, 2, 5, sk[2])
+	c.rect(x, y + 6, 8, 1, sk[0])
+	c.px(x, y, Color(0, 0, 0, 0))
 	# Ojo mirando a la derecha.
 	if kind != "ciclope" and kind != "yelmo":
 		c.rect(x + 5, y + 3, 1, 2, eye)

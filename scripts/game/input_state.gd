@@ -37,7 +37,7 @@ static func from_local(world_aim: Vector2, ui_open: bool) -> InputState:
 			if Input.is_action_just_pressed("skill%d" % (i + 1)):
 				s.skill = i
 		s.drop = Input.is_action_just_pressed("drop")
-	for i in 8:
+	for i in Inventory.HOTBAR:
 		if Input.is_action_just_pressed("hot%d" % (i + 1)):
 			s.hotbar = i
 	return s

@@ -85,7 +85,7 @@ static func generate(seed_value: int, biome_id: String, district: int, door_biom
 		grounds[c] = _carve_room(tiles, w, c, rooms[c]["open"], rng, c == exit_room or c == start or final)
 	var out := {"w": w, "h": h, "tiles": tiles, "rooms": rooms, "grid": gs, "biome": biome_id,
 		"district": district, "start_room": start, "exit_room": exit_room, "path": path, "entities": [], "doors": [], "boss": {}}
-	out["spawn"] = Vector2((start.x * RW + 3) * TILE + 8, (start.y * RH + 15) * TILE)
+	out["spawn"] = Vector2((start.x * RW + (3 if not final else 40)) * TILE + 8, (start.y * RH + 15) * TILE)
 	# --- Puertas de salida ----------------------------------------------------
 	var doors_x := [8, 16, 24] if door_biomes.size() == 3 else [16]
 	for i in door_biomes.size():
@@ -225,6 +225,16 @@ static func _place_entities(out: Dictionary, grounds: Dictionary, biome: Diction
 			return Vector2i(-1, -1)
 		var is_start: bool = c == start
 		var is_exit: bool = c == exit_room
+		# Decoración de fondo (no interactiva).
+		for i in rng.randi_range(2, 5):
+			var sd: Vector2i = spots[rng.randi() % spots.size()]
+			ents.append({"kind": "planta", "pos": _px(sd), "h": rng.randi_range(30, 90), "v": rng.randi() % 5})
+		for i in rng.randi_range(1, 4):
+			var vx := ox + rng.randi_range(2, RW - 3)
+			for vy in range(oy + 1, oy + RH - 2):
+				if tile_at(out, vx, vy) == AIR and tile_at(out, vx, vy - 1) == SOLID:
+					ents.append({"kind": "enredadera", "pos": Vector2(vx * TILE + 8, vy * TILE), "h": rng.randi_range(12, 40), "v": rng.randi() % 5})
+					break
 		# Árboles, rocas, hierba.
 		if biome["trees"] and not is_exit:
 			for i in rng.randi_range(1, 3):

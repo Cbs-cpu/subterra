@@ -159,3 +159,85 @@ func test_death_ends_run() -> void:
 		run._process(1.0 / 60.0)
 	check(ended[0], "fin de partida")
 	_free()
+
+
+func _feed(h: Hero, inp: InputState, frames: int) -> float:
+	var min_y := h.position.y
+	for i in frames:
+		run.remote_inputs[h.peer_id] = inp
+		run.world._physics_process(1.0 / 60.0)
+		min_y = minf(min_y, h.position.y)
+		inp.jump_pressed = false
+		inp.dash = 0
+	return min_y
+
+
+func _flat_start() -> Hero:
+	_make(12)
+	run.district = 21
+	run.enter_district("nido")   # suelo plano
+	for e in run.world.enemies:
+		e.dead = true
+	var h := _hero()
+	h.is_local = false
+	_sim(30)
+	return h
+
+
+func test_jump_height_and_double_jump() -> void:
+	var h := _flat_start()
+	check(h.on_floor, "en el suelo")
+	var y0 := h.position.y
+	var inp := InputState.new()
+	inp.jump = true
+	inp.jump_pressed = true
+	var top := _feed(h, inp, 50)
+	var hgt := y0 - top
+	check(hgt > 64.0 and hgt < 90.0, "salto completo ~4-5 tiles (%.1f)" % hgt)
+	_feed(h, InputState.new(), 60)
+	# Salto corto al soltar pronto.
+	var inp2 := InputState.new()
+	inp2.jump = true
+	inp2.jump_pressed = true
+	var top2 := _feed(h, inp2, 4)
+	inp2.jump = false
+	top2 = minf(top2, _feed(h, inp2, 40))
+	check(y0 - top2 < hgt * 0.7, "salto variable (%.1f)" % (y0 - top2))
+	_feed(h, InputState.new(), 60)
+	# Doble salto.
+	var inp3 := InputState.new()
+	inp3.jump = true
+	inp3.jump_pressed = true
+	_feed(h, inp3, 20)
+	inp3.jump_pressed = true
+	var top3 := _feed(h, inp3, 50)
+	check(y0 - top3 > hgt + 20.0, "doble salto sube más (%.1f)" % (y0 - top3))
+	_free()
+
+
+func test_jump_buffer_and_dash() -> void:
+	var h := _flat_start()
+	var inp := InputState.new()
+	inp.jump = true
+	inp.jump_pressed = true
+	_feed(h, inp, 30)
+	inp.jump = false
+	# Pulsar salto justo antes de aterrizar: debe saltar al tocar suelo.
+	var landed_jump := false
+	for i in 90:
+		var pre := InputState.new()
+		if not h.on_floor and h.vel.y > 0.0 and h.position.y > run.world.map["spawn"].y - 10.0 and not landed_jump:
+			pre.jump = true
+			pre.jump_pressed = true
+			landed_jump = true
+		run.remote_inputs[h.peer_id] = pre
+		run.world._physics_process(1.0 / 60.0)
+	check(landed_jump, "se pulsó en el aire")
+	_feed(h, InputState.new(), 90)
+	var x0 := h.position.x
+	var d := InputState.new()
+	d.dash = 1
+	_feed(h, d, 20)
+	var dist := h.position.x - x0
+	check(dist > 30.0 and dist < 70.0, "dash (%.1f px)" % dist)
+	_free()

@@ -1,0 +1,47 @@
+func _draw_inventory() -> void:
+	var h := hero if hero else local_hero()
+	if h == null:
+		return
+	var m := h.model
+	_panel(Rect2(4, 40, 120, 190))
+	_draw_inv_grid(h)
+	# Ficha del personaje entre las dos columnas de equipo.
+	var sr := Rect2(30, 44, 68, 64)
+	draw_node.draw_rect(sr, COL_SLOT)
+	draw_node.draw_rect(sr, COL_BORDER, false, 1.0)
+	PixelFont.draw_centered(draw_node, sr.get_center().x, sr.position.y + 4, m.name.substr(0, 10), COL_TXT)
+	var y := sr.position.y + 16
+	var keys := ["hp", "atk", "dex", "mag"]
+	var short := ["VID", "ATQ", "DES", "MAG"]
+	for i in 4:
+		var g: int = m.growth[keys[i]]
+		var gc: Color = [Color("#e07a6a"), COL_TXT, Color("#8ae07a")][g]
+		PixelFont.draw_centered(draw_node, sr.get_center().x, y, "%s: %d" % [short[i], m.stat(keys[i])], gc)
+		y += 11
+	var eq := Inventory.EQUIP_SLOTS
+	var names := ["cab", "cue", "esc", "ani", "ani"]
+	for k in eq.size():
+		var r := _equip_rect(k)
+		_slot_box(r)
+		if m.inv.equip[eq[k]] == null:
+			PixelFont.draw_centered(draw_node, r.get_center().x, r.position.y + 7, names[k], Color(1, 1, 1, 0.2), 1, false)
+		_draw_stack(r.position, m.inv.equip[eq[k]])
+	# Sombrero (informativo).
+	var hr := Rect2(102, 88, SLOT, SLOT)
+	_slot_box(hr)
+	var ht = Art.hat(m.hat_id)
+	if ht:
+		draw_node.draw_texture(ht, hr.position + Vector2(3, 4))
+	PixelFont.draw(draw_node, Vector2(8, 184), PixelFont.wrap("Rasgos: " + ", ".join(m.traits.map(func(tr): return Content.find(Content.TRAITS, tr)["name"])), 19), COL_DIM)
+	PixelFont.draw(draw_node, Vector2(8, 206), "Recetas: %d/%d" % [Game.known_recipes().size(), Recipes.pairs().size()], Color("#d8b870"))
+	# Consejo inferior.
+	var tip := "Mayús + clic en dos objetos para combinar. Consejo: prueba madera + madera"
+	draw_node.draw_rect(Rect2(0, 252, 480, 12), Color(0, 0, 0, 0.55))
+	PixelFont.draw_centered(draw_node, 240, 255, tip, Color("#e8e0c8"))
+	var mp := draw_node.get_local_mouse_position()
+	for i in Inventory.SIZE:
+		if _slot_rect(i).has_point(mp):
+			_tooltip(mp, m.inv.slots[i])
+	for k in eq.size():
+		if _equip_rect(k).has_point(mp):
+			_tooltip(mp, m.inv.equip[eq[k]])

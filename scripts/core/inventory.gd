@@ -1,12 +1,12 @@
 class_name Inventory
 extends RefCounted
-## Inventario: 32 ranuras (las 8 primeras son la barra rápida) + equipo.
+## Inventario: 20 ranuras (las 5 primeras son la barra rápida) + equipo.
 ## Una ranura es null o {id, n, dur, q, bonus}. Los objetos con durabilidad o calidad no se apilan.
 
 signal changed
 
-const SIZE := 32
-const HOTBAR := 8
+const SIZE := 20
+const HOTBAR := 5
 const MAX_STACK := 99
 const EQUIP_SLOTS := ["cabeza", "cuerpo", "escudo", "anillo1", "anillo2"]
 

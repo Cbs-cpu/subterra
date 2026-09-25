@@ -1,10 +1,11 @@
 shader_type canvas_item;
-// Dibuja el mapa de tiles de un distrito con autotile por vecinos.
-// data.r*255: 0 aire, 1 sólido, 2 plataforma. Paleta por bioma.
+// Terreno con textura densa de píxeles (grumos de 2 px), musgo que cuelga del borde superior,
+// raíces bajo los salientes y plataformas de tablón con musgo. Sin contornos negros.
+// data.r*255: 0 aire, 1 sólido, 2 plataforma.
 
 uniform sampler2D data : filter_nearest;
 uniform vec2 map_size = vec2(160.0, 36.0);
-uniform vec4 c_top : source_color = vec4(0.29, 0.6, 0.23, 1.0);     // hierba/nieve del borde
+uniform vec4 c_top : source_color = vec4(0.29, 0.6, 0.23, 1.0);
 uniform vec4 c_top2 : source_color = vec4(0.2, 0.45, 0.16, 1.0);
 uniform vec4 c_dirt : source_color = vec4(0.36, 0.24, 0.15, 1.0);
 uniform vec4 c_dirt2 : source_color = vec4(0.28, 0.18, 0.11, 1.0);
@@ -19,54 +20,72 @@ int tile(vec2 t) {
 	return int(texture(data, (t + 0.5) / map_size).r * 255.0 + 0.5);
 }
 
-void fragment() {
-	vec2 px = floor(UV * map_size * 16.0);
+vec4 shade(vec2 px) {
 	vec2 t = floor(px / 16.0);
 	vec2 lp = mod(px, 16.0);
 	int m = tile(t);
-	if (m == 0) {
-		discard;
+	bool up_air = tile(t + vec2(0.0, -1.0)) != 1;
+
+	if (m == 0 || (m == 2 && lp.y > 5.0)) {
+		// Aire: musgo o raíces que cuelgan del sólido de arriba.
+		int above = tile(t + vec2(0.0, -1.0));
+		if (above == 1) {
+			float col = floor(px.x / 2.0);
+			float len = floor(hash(vec2(col, t.y * 3.1)) * 7.0) - 2.0;
+			if (lp.y < len) {
+				return vec4(mix(c_dirt2.rgb, c_top2.rgb, 0.35) * (1.0 - lp.y * 0.08), 1.0);
+			}
+		}
+		return vec4(0.0);
 	}
 	if (m == 2) {
-		// Plataforma de un sentido: tablón de 4 px con remaches.
-		if (lp.y > 4.0) discard;
+		// Plataforma de tablón con musgo encima.
 		vec3 col = c_plat.rgb;
-		if (lp.y == 0.0) col = mix(col, vec3(1.0), 0.25);
-		if (lp.y >= 3.0) col *= 0.65;
-		if (mod(px.x, 16.0) == 1.0 && lp.y == 1.0) col *= 0.6;
-		if (lp.y == 4.0) col = vec3(0.1, 0.07, 0.12);
-		COLOR = vec4(col, 1.0);
-	} else {
-		bool air_up = tile(t + vec2(0.0, -1.0)) != 1;
-		bool air_dn = tile(t + vec2(0.0, 1.0)) != 1;
-		bool air_l = tile(t + vec2(-1.0, 0.0)) != 1;
-		bool air_r = tile(t + vec2(1.0, 0.0)) != 1;
-		// Profundidad: cuántos tiles sólidos hay encima.
-		float depth = 0.0;
-		for (int k = 1; k <= 3; k++) {
-			if (tile(t + vec2(0.0, -float(k))) == 1) depth += 1.0; else break;
+		if (lp.y == 0.0 || (lp.y == 1.0 && hash(vec2(floor(px.x / 2.0), t.y)) > 0.4)) col = c_top.rgb;
+		else if (lp.y >= 4.0) col *= 0.55;
+		else if (mod(px.x, 8.0) == 0.0) col *= 0.7;
+		if (lp.y == 5.0) {
+			if (hash(vec2(px.x, t.y)) > 0.6) col = c_top2.rgb * 0.8; else return vec4(0.0);
 		}
-		float n = hash(px);
-		float blob = hash(floor(px / 4.0) + t * 7.0);
-		vec3 col = mix(c_dirt.rgb, c_dirt2.rgb, step(0.6, blob));
-		if (depth >= 3.0) col = mix(col, c_deep.rgb, 0.6);
-		if (n > 0.965) col = c_speck.rgb;
-		// Piedras incrustadas.
-		if (blob > 0.93 && depth >= 1.0) col = mix(col, vec3(0.55, 0.55, 0.6), 0.5);
-		// Borde superior con hierba y flecos.
-		if (air_up) {
-			float fringe = 4.0 + floor(hash(vec2(px.x, t.y)) * 3.0);
-			if (lp.y < fringe) col = lp.y < 2.0 ? c_top.rgb : c_top2.rgb;
-			if (lp.y == 0.0) col = mix(col, vec3(1.0), 0.2);
-		}
-		// Contornos hacia el aire.
-		if ((air_up && lp.y == 0.0 && false) || (air_l && lp.x == 0.0) || (air_r && lp.x == 15.0) || (air_dn && lp.y == 15.0)) {
-			col = vec3(0.1, 0.07, 0.12);
-		} else {
-			if (air_l && lp.x == 1.0) col *= 1.15;
-			if (air_r && lp.x == 14.0) col *= 0.75;
-			if (air_dn && lp.y == 14.0) col *= 0.7;
-		}
-		COLOR = vec4(col, 1.0);
+		return vec4(col, 1.0);
 	}
+	// Sólido: textura de grumos de 2 px con tres tonos.
+	vec2 g = floor(px / 2.0);
+	float n = hash(g);
+	float n2 = hash(g + 17.0);
+	float depth = 0.0;
+	for (int k = 1; k <= 3; k++) {
+		if (tile(t + vec2(0.0, -float(k))) == 1) depth += 1.0; else break;
+	}
+	vec3 col = c_dirt.rgb;
+	if (n > 0.55) col = c_dirt2.rgb;
+	if (n > 0.88) col = c_speck.rgb;
+	if (n < 0.08) col = c_deep.rgb;
+	col = mix(col, c_deep.rgb, clamp(depth / 3.0, 0.0, 1.0) * 0.55);
+	// Piedras incrustadas (grumos de 4 px).
+	float st = hash(floor(px / 4.0) + t * 5.0);
+	if (st > 0.94 && depth >= 1.0) col = mix(col, vec3(0.5, 0.5, 0.55), 0.45);
+	// Borde superior: capa de hierba/musgo de altura irregular con hojas.
+	if (up_air) {
+		float h = 3.0 + floor(hash(vec2(floor(px.x / 2.0), t.y)) * 3.0);
+		if (lp.y < h) {
+			col = (n2 > 0.5) ? c_top.rgb : c_top2.rgb;
+			if (lp.y == 0.0 && n2 > 0.3) col = mix(c_top.rgb, vec3(1.0), 0.18);
+		} else if (lp.y < h + 2.0 && n2 > 0.5) {
+			col = c_top2.rgb * 0.8;
+		}
+	}
+	// Bordes laterales hacia el aire: algo más oscuros, sin contorno negro.
+	if (tile(t + vec2(-1.0, 0.0)) != 1 && lp.x < 1.0) col *= 0.75;
+	if (tile(t + vec2(1.0, 0.0)) != 1 && lp.x > 14.0) col *= 0.65;
+	if (tile(t + vec2(0.0, 1.0)) != 1 && lp.y > 14.0) col *= 0.6;
+	return vec4(col, 1.0);
+}
+
+void fragment() {
+	vec4 c = shade(floor(UV * map_size * 16.0));
+	if (c.a < 0.5) {
+		discard;
+	}
+	COLOR = c;
 }

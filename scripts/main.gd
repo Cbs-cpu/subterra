@@ -510,6 +510,15 @@ func _shots() -> void:
 	await _shot("01_crear", 0.3)
 	_start_single(4242)
 	await _shot("02_bosque", 1.5)
+	var hh: Hero = game_ui.local_hero()
+	for k in ["limo_verde", "arana_verde", "jabali", "avispa", "cerdo"]:
+		run.world.spawn_enemy(k, hh.position + Vector2(40 + ["limo_verde", "arana_verde", "jabali", "avispa", "cerdo"].find(k) * 26, -20))
+	run.world.god_mode = true
+	hh.model.inv.slots[1] = Inventory.make("baston_fuego", 1)
+	hh.model.mana = 5
+	hh.model.inv.hand = 1
+	hh._cast("bola_fuego", 1.0)
+	await _shot("02b_combate", 0.35)
 	var h: Hero = game_ui.local_hero()
 	h.model.inv.add(Inventory.make("madera", 10))
 	h.model.inv.add(Inventory.make("espada_hierro", 1))

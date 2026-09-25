@@ -2,6 +2,35 @@ extends Node
 ## Punto de acceso único al arte generado (con caché).
 
 var _cache := {}
+var _light_tex: Texture2D
+
+
+## Textura radial para las luces 2D.
+func light_tex() -> Texture2D:
+	if _light_tex == null:
+		var g := Gradient.new()
+		g.set_color(0, Color(1, 1, 1, 1))
+		g.set_color(1, Color(1, 1, 1, 0))
+		g.add_point(0.45, Color(1, 1, 1, 0.55))
+		var gt := GradientTexture2D.new()
+		gt.gradient = g
+		gt.width = 128
+		gt.height = 128
+		gt.fill = GradientTexture2D.FILL_RADIAL
+		gt.fill_from = Vector2(0.5, 0.5)
+		gt.fill_to = Vector2(1.0, 0.5)
+		_light_tex = gt
+	return _light_tex
+
+
+## Crea una luz puntual de radio aproximado en píxeles.
+func make_light(col: Color, radius: float, energy: float = 1.0) -> PointLight2D:
+	var l := PointLight2D.new()
+	l.texture = light_tex()
+	l.texture_scale = radius / 64.0
+	l.color = col
+	l.energy = energy
+	return l
 
 
 func _c(key: String, fn: Callable) -> Variant:
@@ -64,6 +93,14 @@ func grass(biome: String, frame: int) -> ImageTexture:
 
 func chest(golden: bool, open: bool) -> ImageTexture:
 	return _c("chest|%s|%s" % [golden, open], func(): return PropsArt.chest(golden, open))
+
+
+func plant(biome: String, h: int, variant: int) -> ImageTexture:
+	return _c("plant|%s|%d|%d" % [biome, h, variant % 5], func(): return PropsArt.plant(biome, h, variant % 5))
+
+
+func vine(biome: String, h: int, variant: int) -> ImageTexture:
+	return _c("vine|%s|%d|%d" % [biome, h, variant % 5], func(): return PropsArt.vine(biome, h, variant % 5))
 
 
 func egg() -> ImageTexture:
