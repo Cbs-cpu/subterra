@@ -39,11 +39,6 @@ func _c(key: String, fn: Callable) -> Variant:
 	return _cache[key]
 
 
-## Aspecto de una raza (con el sombrero se dibuja aparte).
-func race_look(race_id: String) -> Dictionary:
-	return Content.race(race_id)["look"]
-
-
 ## Fotograma de humanoide: {tex, hand, head}. look_key identifica el aspecto para la caché.
 func humanoid(look_key: String, look: Dictionary, anim: String, i: int) -> Dictionary:
 	var n: int = Humanoid.ANIMS.get(anim, 1)
@@ -52,35 +47,40 @@ func humanoid(look_key: String, look: Dictionary, anim: String, i: int) -> Dicti
 
 
 ## Número de fotogramas de una animación del héroe (sprites de Humanoid).
+## Fotogramas del caballero horneados por tools/bake_knight.gd (en el juego se renderiza en
+## vivo en 3D con KnightView; esto es para menús, retrato y estela del dash).
+const KNIGHT_DIR := "res://assets/sprites/caballero/"
+var _knight_anchors := {}
+
+
+func _knight_meta() -> Dictionary:
+	if _knight_anchors.is_empty():
+		var txt := FileAccess.get_file_as_string(KNIGHT_DIR + "anchors.json")
+		var d = JSON.parse_string(txt)
+		_knight_anchors = d if d is Dictionary else {"feet": [32, 43], "frames": {"idle": [{"hand": [0, 0], "head": [0, 0]}]}}
+	return _knight_anchors
+
+
 func hero_count(_race_id: String, anim: String) -> int:
-	return Humanoid.ANIMS.get(anim, 1)
+	var fr: Dictionary = _knight_meta()["frames"]
+	return (fr[anim] as Array).size() if fr.has(anim) else 1
 
 
-## Fotograma del héroe: {tex, hand, head, origin}. El Minero se anima por piezas en el
-## juego (scenes/pj_rig.tscn); aquí se da su pose de reposo montada en una sola imagen para
-## los retratos de los menús.
-func hero_frame(race_id: String, anim: String, i: int) -> Dictionary:
-	if race_id == "minero":
-		return _c("pj_partes", _pj_portrait)
-	var d: Dictionary = humanoid("race_" + race_id, race_look(race_id), anim, i)
-	if not d.has("origin"):
-		d["origin"] = Vector2i(7, 18)
-	return d
-
-
-## Monta las piezas del Minero en reposo (mismas posiciones que REST en tools/build_pj_rig.gd).
-func _pj_portrait() -> Dictionary:
-	var dir := "res://assets/sprites/pj_partes/"
-	var origin := Vector2i(8, 16)
-	var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
-	# [pieza, esquina superior izquierda relativa a los pies], de atrás hacia delante.
-	for p in [["pie", Vector2i(-4, -4)], ["pie", Vector2i(0, -4)], ["mano", Vector2i(-8, -6)],
-			["torso", Vector2i(-4, -8)], ["cabeza", Vector2i(-6, -16)], ["mano", Vector2i(4, -6)]]:
-		var tex: Texture2D = load(dir + p[0] + ".png")
-		var part := tex.get_image()
-		part.convert(Image.FORMAT_RGBA8)
-		img.blend_rect(part, Rect2i(Vector2i.ZERO, part.get_size()), origin + p[1])
-	return {"tex": ImageTexture.create_from_image(img), "hand": origin + Vector2i(6, -4), "head": origin + Vector2i(0, -16), "origin": origin}
+## Fotograma del héroe: {tex, hand, head, origin} en píxeles de la textura (origin = pies).
+## Todas las razas son el caballero.
+func hero_frame(_race_id: String, anim: String, i: int) -> Dictionary:
+	var meta := _knight_meta()
+	var frames: Dictionary = meta["frames"]
+	if not frames.has(anim):
+		anim = "idle"
+	var list: Array = frames[anim]
+	var fi := i % list.size()
+	return _c("knight|%s|%d" % [anim, fi], func():
+		var feet := Vector2i(int(meta["feet"][0]), int(meta["feet"][1]))
+		var a: Dictionary = list[fi]
+		return {"tex": load(KNIGHT_DIR + "%s_%d.png" % [anim, fi]), "origin": feet,
+			"hand": feet + Vector2i(int(a["hand"][0]), int(a["hand"][1])),
+			"head": feet + Vector2i(int(a["head"][0]), int(a["head"][1]))})
 
 
 func npc_frame(kind: String, anim: String, i: int) -> Dictionary:
@@ -166,10 +166,6 @@ func companion(id: String, frame: int) -> Variant:
 ## Vuelca todo el arte a PNG para revisarlo o editarlo.
 func export_all(dir: String) -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
-	for r in Content.RACES:
-		for anim in Humanoid.ANIMS:
-			for i in Humanoid.ANIMS[anim]:
-				hero_frame(r["id"], anim, i)["tex"].get_image().save_png("%s/raza_%s_%s_%d.png" % [dir, r["id"], anim, i])
 	for k in Humanoid.ENEMY_LOOKS:
 		for i in 6:
 			npc_frame(k, "run", i)["tex"].get_image().save_png("%s/hum_%s_run_%d.png" % [dir, k, i])

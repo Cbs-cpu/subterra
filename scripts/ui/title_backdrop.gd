@@ -16,7 +16,6 @@ const GROUND := 116              # altura del suelo en la rejilla
 const INK := Color("#0e0a0a")
 const FIRE := Vector2(74, GROUND)
 const HERO := Vector2(58, GROUND)
-const RIG_ORDER := ["PieB", "PieF", "ManoB", "Torso", "Cabeza", "ManoF"]
 
 var t := 0.0
 var dim := 0.0               # 0 = portada, 1 = submenús (fondo más apagado)
@@ -31,20 +30,15 @@ var _front: ImageTexture
 var _stars: Array = []
 var _flies: Array = []
 var _rng := RandomNumberGenerator.new()
-var _rig: Node2D
-var _rig_ap: AnimationPlayer
+var _knight: KnightView
 
 
 func _ready() -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_rng.seed = 20260925
 	_build()
-	_rig = load("res://scenes/pj_rig.tscn").instantiate()
-	_rig.visible = false
-	add_child(_rig)
-	_rig_ap = _rig.get_node("AnimationPlayer")
-	_rig_ap.speed_scale = 0.0
-	_rig_ap.play("idle")
+	_knight = KnightView.new()
+	add_child(_knight)
 
 
 func set_dimmed(on: bool) -> void:
@@ -268,7 +262,7 @@ func _draw() -> void:
 	for k in 3:
 		var sp := fmod(t * 0.9 + k * 0.33, 1.0)
 		_px(fire + Vector2(sin(t * 3.0 + k * 2.0) * 3.0, -8 - sp * 22.0), Color(1.0, 0.7, 0.3, 1.0 - sp))
-	# El Minero descansando junto al fuego (mismas piezas y animación que en el juego).
+	# El caballero descansando junto al fuego (el mismo modelo 3D que en el juego).
 	_draw_hero(HERO + off)
 	# Luciérnagas.
 	for f in _flies:
@@ -280,13 +274,10 @@ func _draw() -> void:
 
 
 func _draw_hero(feet: Vector2) -> void:
-	_rig_ap.seek(fmod(t, 2.0), true)
-	var r: Node2D = _rig.get_node("Root")
-	var base := Transform2D(0.0, Vector2(PX, PX), 0.0, feet * PX)
-	for n in RIG_ORDER:
-		var s: Sprite2D = r.get_node(n)
-		var tr := RigPose.pixel_tr(r.transform * s.transform)
-		tr.origin = tr.origin.round()
-		draw_set_transform_matrix(base * tr)
-		draw_texture(s.texture, s.offset)
-	draw_set_transform_matrix(Transform2D.IDENTITY)
+	if _knight.texture == null:
+		return
+	_knight.set_pose("idle", fmod(t, 2.0))
+	# Brisa suave que mece la capa.
+	_knight.push(Vector3(-0.6 - 0.4 * sin(t * 0.7), 0.0, 0.2 * sin(t * 1.3)))
+	var f := Vector2(KnightView.FEET)
+	draw_texture_rect(_knight.texture, Rect2((feet - f) * PX, Vector2(KnightView.SIZE) * PX), false)

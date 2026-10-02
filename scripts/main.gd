@@ -491,11 +491,12 @@ func _draw_create() -> void:
 	UiKit.box(c, pv, Color(UiKit.BG_DEEP, 0.7), Color(UiKit.LINE, 0.6), 4)
 	var f := Art.hero_frame(race["id"], "run", int(t * 10.0))
 	var feet := Vector2(pv.get_center().x, pv.end.y - 6)
-	_draw_frame(f, feet, 3)
+	# El caballero mide ~30 px: a x2 cabe en la vista previa con su sombrero.
+	_draw_frame(f, feet, 2)
 	var ht = Art.hat(hat["id"])
 	if ht:
-		var hp: Vector2 = feet + (Vector2(f["head"]) - Vector2(f["origin"]) + Vector2(-6, -10)) * 3.0
-		c.draw_texture_rect(ht, Rect2(hp, ht.get_size() * 3.0), false)
+		var hp: Vector2 = feet + (Vector2(f["head"]) - Vector2(f["origin"]) + Vector2(-6, -10)) * 2.0
+		c.draw_texture_rect(ht, Rect2(hp, ht.get_size() * 2.0), false)
 	var cp = Art.companion(comp["id"], int(t * 6.0))
 	if cp:
 		c.draw_texture_rect(cp, Rect2(Vector2(pv.end.x - 30, pv.position.y + 10 + sin(t * 3.0) * 3.0), Vector2(24, 24)), false)
@@ -853,17 +854,19 @@ func _chop_test() -> void:
 		var frames: Array[Image] = []
 		for kk in [0.0, 0.2, 0.35, 0.45, 0.5, 0.56, 0.7, 0.95]:
 			h.attack_t = 0.3 * (1.0 - kk)
+			# Con el mundo en pausa el héroe no hace tick: se le pone la pose a mano.
+			h._update_knight(0.0)
 			h.queue_redraw()
 			await RenderingServer.frame_post_draw
 			await RenderingServer.frame_post_draw
 			var img: Image = run.world_vp.get_texture().get_image()
 			var sp: Vector2 = h.position - w.camera.get_screen_center_position() + Vector2(Run.WORLD_RES) / 2.0
-			var fr := img.get_region(Rect2i(int(sp.x) - 22, int(sp.y) - 26, 44, 30))
-			fr.resize(44 * 6, 30 * 6, Image.INTERPOLATE_NEAREST)
+			var fr := img.get_region(Rect2i(int(sp.x) - 22, int(sp.y) - 38, 44, 42))
+			fr.resize(44 * 6, 42 * 6, Image.INTERPOLATE_NEAREST)
 			frames.append(fr)
-		var strip := Image.create(frames.size() * 44 * 6, 30 * 6, false, frames[0].get_format())
+		var strip := Image.create(frames.size() * 44 * 6, 42 * 6, false, frames[0].get_format())
 		for i in frames.size():
-			strip.blit_rect(frames[i], Rect2i(0, 0, 44 * 6, 30 * 6), Vector2i(i * 44 * 6, 0))
+			strip.blit_rect(frames[i], Rect2i(0, 0, 44 * 6, 42 * 6), Vector2i(i * 44 * 6, 0))
 		rows.append(strip)
 		w.paused = false
 		# Golpe real contra el árbol: se inclina y saltan astillas.

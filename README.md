@@ -64,18 +64,24 @@ python tools/make_font.py
 ### Consola de depuración
 Pulsa **`** (acento grave; en teclado español, la tecla a la derecha de la P) o **F12**. `help` lista los comandos; **Tab** autocompleta (también ids de objetos, enemigos y biomas) y **↑/↓** recorren el historial. Algunos: `give <objeto> [n]`, `spawn <enemigo> [n]`, `kill`, `heal`, `god`, `noclip`, `level <n>`, `coins <n>`, `stat atk 5`, `skill <id>`, `district <bioma> [n]`, `town`, `door <n>`, `final`, `exit`, `reveal`, `time <s>`, `speed <x>`, `unlock all`, `info`, `stats` (FPS y entidades). En cooperativo los trucos solo funcionan en el anfitrión.
 
-### Personaje principal por piezas (AnimationPlayer)
-El Minero se monta con piezas sueltas de pixel art gordito con contorno negro (cabeza, torso, dos manos flotantes y dos pies), como en los juegos de su época. Las piezas se dibujan en `tools/pj_partes.py` y la escena `scenes/pj_rig.tscn` las une con pivotes y un `AnimationPlayer` con `idle`, `run`, `jump`, `fall`, `attack`, `hurt`, `dash` y `down`. El héroe elige la animación y el punto según su estado; el arma va en la mano delantera y el sombrero sobre la cabeza.
+### Personaje jugable: el caballero 3D
+Todas las razas juegan con el mismo caballero de fantasía oscura (armadura negra, manto de pelaje blanco, negro y gris, capucha caída, capa rota y yelmo con penacho y ojos rojos tenues). Es un modelo 3D que se renderiza **en vivo** a pixel art: `KnightView` (`scripts/game/knight_view.gd`) lo pinta en un SubViewport de 64x48 con sombreado toon por escalones (`shaders/knight_toon.gdshader`) y le pone el contorno negro de 1 px (`shaders/pixel_outline.gdshader`); el héroe dibuja esa textura con los pies en su posición, la voltea según hacia dónde mire y coloca el arma en la mano derecha proyectando el hueso. Mide ~30 px (colisión 10x26).
+
+- **Telas con física:** capa (7 cadenas), capucha, penacho del yelmo, pelaje y faldar son huesos que mueve `SpringBoneSimulator3D` con cápsulas de colisión en piernas y torso. El cuerpo 3D se desplaza en su mundo siguiendo la velocidad del héroe, así que la capa ondea al correr, sube al caer y se balancea al frenar sin animarla a mano.
+- **Animaciones:** `idle`, `run`, `jump`, `fall`, `attack`, `attack_pick`, `punch`, `chop` (tajo horizontal a dos manos), `hurt`, `dash` y `down` (de rodillas), con las duraciones que usa `hero.gd`.
+- **Origen:** concepto hecho con Gemini (`art_src/caballero/concepto_v4.jpg`), malla de Tripo y todo lo demás en Blender por script (`art_src/caballero/scripts/`): reducción a 30k triángulos, esqueleto de 111 huesos con nombres del perfil humanoide de Godot (dedos incluidos), pesos por distancia geodésica, animaciones (`anims.py`) y exportación a `assets/models/caballero/caballero.glb`. El GLB original de Tripo no se sube (`art_src/caballero/raw/`).
 
 ```bash
-python tools/pj_partes.py                                    # piezas -> assets/sprites/pj_partes/
-godot --headless --path . -s res://tools/build_pj_rig.gd     # escena y animaciones -> scenes/pj_rig.tscn
-godot --path . -s res://tools/rig_strip.gd                   # hoja de revisión -> shots/rig_anims.png
+# Blender (5.x): orden de los pasos, desde art_src/caballero/
+blender -b -P scripts/04_decimate.py   # raw/caballero_tripo.glb -> raw/base.blend
+blender -b -P scripts/08_rig.py        # esqueleto y pesos -> raw/rig.blend
+blender -b -P scripts/10_anims.py      # animaciones -> raw/anim.blend
+blender -b -P scripts/12_export.py     # -> assets/models/caballero/caballero.glb
+# Fotogramas para menús, retrato y estela del dash (con ventana) -> assets/sprites/caballero/
+godot --path . -s res://tools/bake_knight.gd
 ```
 
-La escena se puede abrir y retocar en el editor (pestaña Animación); si se regenera con el script se sobrescribe.
-
-El resto de razas, vecinos, tenderos y enemigos con forma de persona usan el mismo sistema: `scripts/art/humanoid.gd` genera sus piezas (cabeza, torso, manos y pies con contorno negro y variantes: yelmos, setas, calaveras, túnicas…) y las monta con las poses que `RigPose` lee de las animaciones de `scenes/pj_rig.tscn`, así que todos se mueven igual que el protagonista. Los enemigos-criatura también van por piezas: `tools/enemigos.py` y `tools/enemigos_criaturas.py` dibujan las piezas (pivotes en `piezas.json`), `tools/enemy_defs*.gd` define esqueletos y animaciones, `tools/build_enemy_rig.gd` crea `scenes/enemigos/<id>.tscn` y `EnemyRig` las usa en el juego. `tools/enemies_grid_gif.gd` y `tools/enemy_gif.gd` hacen vídeos de revisión. Objetos, props y terreno llevan también contorno negro; los pueblos tienen casas, farolas, banderines y humo (`TownDecor`). Todos los árboles, también los altos de fondo, se talan. `python tools/contact_sheet.py` hace hojas de revisión en `shots/hoja_*.png` tras exportar el arte.
+El Minero por piezas ya no es el protagonista, pero su escena `scenes/pj_rig.tscn` (piezas de `tools/pj_partes.py`, animaciones de `tools/build_pj_rig.gd`) sigue siendo el esqueleto de los humanoides 2D: vecinos, tenderos y enemigos con forma de persona. `scripts/art/humanoid.gd` genera sus piezas (cabeza, torso, manos y pies con contorno negro y variantes: yelmos, setas, calaveras, túnicas…) y las monta con las poses que `RigPose` lee de las animaciones de `scenes/pj_rig.tscn`, así que todos se mueven igual. Los enemigos-criatura también van por piezas: `tools/enemigos.py` y `tools/enemigos_criaturas.py` dibujan las piezas (pivotes en `piezas.json`), `tools/enemy_defs*.gd` define esqueletos y animaciones, `tools/build_enemy_rig.gd` crea `scenes/enemigos/<id>.tscn` y `EnemyRig` las usa en el juego. `tools/enemies_grid_gif.gd` y `tools/enemy_gif.gd` hacen vídeos de revisión. Objetos, props y terreno llevan también contorno negro; los pueblos tienen casas, farolas, banderines y humo (`TownDecor`). Todos los árboles, también los altos de fondo, se talan. `python tools/contact_sheet.py` hace hojas de revisión en `shots/hoja_*.png` tras exportar el arte.
 
 Argumentos tras `--`: `--play` (partida directa), `--shots` (capturas en `shots/`), `--chop-test` (tira de fotogramas del tajo de hacha en `shots/chop.png`), `--ui-audit` (recorre todas las pantallas y paneles, guarda `shots/ui_*.png` y avisa de cualquier texto que se solape o se salga de la pantalla), `--host-test` y `--join-test` (prueba de red en local).
 
